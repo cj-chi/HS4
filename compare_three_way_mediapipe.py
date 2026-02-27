@@ -12,6 +12,8 @@ import argparse
 import json
 import subprocess
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent
@@ -45,6 +47,11 @@ def main():
     if not args.base_card.exists():
         raise SystemExit("Base card not found: %s" % args.base_card)
 
+    t_total_start = time.perf_counter()
+    run_at_iso = datetime.now().isoformat()
+    run_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timing_steps = []
+
     out = Path(args.output_dir).resolve()
     out.mkdir(parents=True, exist_ok=True)
     request_file = out / "load_card_request.txt"
@@ -62,6 +69,7 @@ def main():
         if not hs4_old.is_dir():
             raise SystemExit("Old project not found: %s (use --hs4-old)" % hs4_old)
         _out("=== 1/5 舊版產卡 ===")
+        t0 = time.perf_counter()
         r = subprocess.run(
             [
                 sys.executable, "run_poc.py",
@@ -74,10 +82,12 @@ def main():
             capture_output=True,
             text=True,
         )
+        timing_steps.append({"id": "card_old", "duration_sec": round(time.perf_counter() - t0, 2)})
         if r.returncode != 0:
             _out(r.stderr or r.stdout or "run_poc failed")
             raise SystemExit(r.returncode)
         _out("=== 2/5 新版產卡 (ratio_to_slider_map_new_only.json) ===")
+        t0 = time.perf_counter()
         r = subprocess.run(
             [
                 sys.executable, "run_poc.py",
@@ -91,10 +101,12 @@ def main():
             capture_output=True,
             text=True,
         )
+        timing_steps.append({"id": "card_new", "duration_sec": round(time.perf_counter() - t0, 2)})
         if r.returncode != 0:
             _out(r.stderr or r.stdout or "run_poc failed")
             raise SystemExit(r.returncode)
         _out("=== 3/5 混合版產卡 (ratio_to_slider_map.json) ===")
+        t0 = time.perf_counter()
         r = subprocess.run(
             [
                 sys.executable, "run_poc.py",
@@ -107,11 +119,15 @@ def main():
             capture_output=True,
             text=True,
         )
+        timing_steps.append({"id": "card_hybrid", "duration_sec": round(time.perf_counter() - t0, 2)})
         if r.returncode != 0:
             _out(r.stderr or r.stdout or "run_poc failed")
             raise SystemExit(r.returncode)
     else:
         _out("(略過產卡)")
+        timing_steps.append({"id": "card_old", "duration_sec": 0, "skipped": True})
+        timing_steps.append({"id": "card_new", "duration_sec": 0, "skipped": True})
+        timing_steps.append({"id": "card_hybrid", "duration_sec": 0, "skipped": True})
     for c in (card_old, card_new, card_hybrid):
         if not c.exists():
             raise SystemExit("Card missing: %s" % c)
@@ -120,6 +136,7 @@ def main():
     ready_file = request_file.parent / "game_ready.txt"
     if args.launch_game and Path(args.launch_game).exists():
         _out("=== 啟動 HS2，等待 game_ready.txt ===")
+        t0 = time.perf_counter()
         try:
             subprocess.Popen(
                 [str(args.launch_game)],
@@ -131,24 +148,32 @@ def main():
         from run_phase1 import wait_for_ready_file
         if not wait_for_ready_file(ready_file, args.ready_timeout, args.progress_interval):
             raise SystemExit("Game ready timeout. RequestFile = %s" % request_file)
+        timing_steps.append({"id": "launch_game", "duration_sec": round(time.perf_counter() - t0, 2)})
         _out("  Game ready.")
-    elif not args.skip_screenshots:
-        _out("(未傳 --launch-game，請先手動開啟 HS2 並進入角色編輯)")
+    else:
+        if not args.skip_screenshots:
+            _out("(未傳 --launch-game，請先手動開啟 HS2 並進入角色編輯)")
+        timing_steps.append({"id": "launch_game", "duration_sec": 0, "skipped": True})
 
     # 2) 請求三張截圖
     if not args.skip_screenshots:
         _out("=== 4/5 請求截圖（舊 → 新 → 混）===")
         from run_phase1 import request_screenshot_and_wait
-        for label, card_path, shot_path in [
-            ("舊版", card_old, screenshot_old),
-            ("新版", card_new, screenshot_new),
-            ("混合", card_hybrid, screenshot_hybrid),
+        for step_id, label, card_path, shot_path in [
+            ("screenshot_old", "舊版", card_old, screenshot_old),
+            ("screenshot_new", "新版", card_new, screenshot_new),
+            ("screenshot_hybrid", "混合", card_hybrid, screenshot_hybrid),
         ]:
+            t0 = time.perf_counter()
             ok = request_screenshot_and_wait(card_path, request_file, shot_path, timeout_sec=args.screenshot_timeout)
+            timing_steps.append({"id": step_id, "duration_sec": round(time.perf_counter() - t0, 2)})
             if not ok:
                 _out("  %s 截圖逾時" % label)
     else:
         _out("(略過請求截圖)")
+        timing_steps.append({"id": "screenshot_old", "duration_sec": 0, "skipped": True})
+        timing_steps.append({"id": "screenshot_new", "duration_sec": 0, "skipped": True})
+        timing_steps.append({"id": "screenshot_hybrid", "duration_sec": 0, "skipped": True})
 
     for shot in (screenshot_old, screenshot_new, screenshot_hybrid):
         if not shot.exists():
@@ -162,11 +187,14 @@ def main():
     from extract_face_ratios import extract_ratios
     from report_17_ratio_mapping import run_report, RATIO_ORDER_AND_SLIDER
 
+    t0 = time.perf_counter()
     target_ratios = extract_ratios(args.target_image)
     actual_old = extract_ratios(screenshot_old)
     actual_new = extract_ratios(screenshot_new)
     actual_hybrid = extract_ratios(screenshot_hybrid)
+    timing_steps.append({"id": "mediapipe_extract", "duration_sec": round(time.perf_counter() - t0, 2)})
 
+    t0 = time.perf_counter()
     report_old = run_report(target_ratios, actual_old, str(args.target_image), str(screenshot_old))
     report_new = run_report(target_ratios, actual_new, str(args.target_image), str(screenshot_new))
     report_hybrid = run_report(target_ratios, actual_hybrid, str(args.target_image), str(screenshot_hybrid))
@@ -224,10 +252,25 @@ def main():
         "- 混合 vs 原始圖：total_loss = %.4f，%s" % (t_hyb, report_hybrid["summary"]["within_10pct_summary"]),
         "",
     ])
+    timing_steps.append({"id": "mediapipe_report", "duration_sec": round(time.perf_counter() - t0, 2)})
+
+    total_sec = round(time.perf_counter() - t_total_start, 2)
+    execution_times = {"unit": "s", "total_sec": total_sec, "steps": timing_steps}
+    out_data["execution_times"] = execution_times
+    out_data["run_at_iso"] = run_at_iso
 
     summary_path = out / "compare_three_way_summary.json"
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(out_data, f, indent=2, ensure_ascii=False)
+
+    timing_path = out / ("%s_三向比對_執行時間.json" % run_ts)
+    timing_payload = {
+        "run_at_iso": run_at_iso,
+        "execution_times": execution_times,
+        "target_image": str(args.target_image),
+    }
+    with open(timing_path, "w", encoding="utf-8") as f:
+        json.dump(timing_payload, f, indent=2, ensure_ascii=False)
     md_path = out / "compare_three_way_summary.md"
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("# 完整測試：原始 JPG vs 舊 / 新 / 混 截圖 MediaPipe 誤差（單位：%）\n\n")
@@ -240,7 +283,9 @@ def main():
     for line in lines:
         _out(line)
     _out("")
-    _out("報告已寫入: %s, %s" % (summary_path, md_path))
+    parts = ["%s: %s s" % (s["id"], s["duration_sec"]) for s in timing_steps]
+    _out("執行時間（單位：s）: " + " | ".join(parts) + " | total: %s s" % total_sec)
+    _out("報告已寫入: %s, %s, %s" % (summary_path, md_path, timing_path))
     return 0
 
 
