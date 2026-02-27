@@ -291,7 +291,7 @@ def main():
     with open(results_path, "w", encoding="utf-8") as f:
         json.dump(mediapipe_results, f, indent=2, ensure_ascii=False)
     _out("  results: %s" % results_path)
-    _out("  total_loss: %.4f" % total_loss)
+    _out("  total_loss: %.4f（誤差見 results 內 errors_percent，單位 %%）" % total_loss)
     _out("")
     _out("--- Phase 1 done (no manual steps) ---")
 

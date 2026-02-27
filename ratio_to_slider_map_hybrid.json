@@ -1,5 +1,23 @@
 {
-  "description": "Hybrid map (old vs new by compare report). See ratio_to_slider_map_hybrid.json for calibration_source.",
+  "description": "Hybrid: per-slider calibration from old or new map by compare_mediapipe_summary (lower error wins). Ratios = new (16).",
+  "calibration_source": {
+    "eye_vertical": "new",
+    "eye_size": "new",
+    "lower_lip_thick": "old",
+    "mouth_width": "new",
+    "nose_width": "new",
+    "nose_height": "old",
+    "bridge_height": "new",
+    "upper_lip_thick": "old",
+    "mouth_height": "new",
+    "eye_span": "new",
+    "eye_angle_z": "old",
+    "chin_height": "new",
+    "head_width": "new",
+    "jaw_width": "new",
+    "head_lower_width": "new",
+    "lip_thickness": "old"
+  },
   "ratios": {
     "eye_span_to_face_width": {
       "slider": "eye_span",

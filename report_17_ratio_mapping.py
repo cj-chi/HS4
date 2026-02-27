@@ -203,11 +203,12 @@ def main():
 
     report = run_report(target_ratios, actual_ratios, source_label, screenshot_label)
 
-    # 輸出 JSON
+    # 輸出 JSON（誤差一律以百分比 % 表示）
     out_data = {
         "source": source_label,
         "screenshot": screenshot_label,
         "threshold_pct": args.threshold,
+        "error_unit": "percent",
         "rows": report["rows"],
         "summary": report["summary"],
     }
@@ -220,23 +221,23 @@ def main():
             json.dump(out_data, f, indent=2, ensure_ascii=False)
         print("JSON:", json_path)
 
-        # Markdown 表
+        # Markdown 表（誤差一律以百分比 % 表示）
         lines = [
-            "# 17 ratio mapping 驗證：原始圖 vs 遊戲截圖誤差 %",
+            "# 17 ratio mapping 驗證：原始圖 vs 遊戲截圖（誤差單位：%）",
             "",
             "- **原始/目標**: %s" % source_label,
             "- **截圖**: %s" % screenshot_label,
             "- **達標門檻**: 誤差 ≤ %.0f%%" % args.threshold,
-            "- **摘要**: %s，total_loss = %s" % (
+            "- **摘要**: %s，total_loss = %s（表中誤差欄位單位：%%）" % (
                 report["summary"]["within_10pct_summary"],
                 report["summary"]["total_loss"],
             ),
             "",
-            "| ratio | slider | target | actual | error_%% | ≤10%% |",
+            "| ratio | slider | target | actual | 誤差(%%) | ≤10%% |",
             "|-------|--------|--------|--------|----------|-------|",
         ]
         for r in report["rows"]:
-            err = "%.2f" % r["error_pct"] if r["error_pct"] is not None else "—"
+            err = "%.2f%%" % r["error_pct"] if r["error_pct"] is not None else "—"
             ok = "✓" if r.get("within_10pct") else "✗" if r.get("within_10pct") is False else "—"
             lines.append("| %s | %s | %s | %s | %s | %s |" % (
                 r["ratio"],
@@ -252,14 +253,14 @@ def main():
     else:
         print(json.dumps(out_data, indent=2, ensure_ascii=False))
 
-    # 終端摘要
+    # 終端摘要（誤差皆以百分比 % 表示）
     try:
         print("")
-        print("--- 摘要 ---")
+        print("--- 摘要（誤差單位：%）---")
         print(report["summary"]["within_10pct_summary"])
-        print("total_loss:", report["summary"]["total_loss"])
+        print("total_loss（加權分數）:", report["summary"]["total_loss"])
     except UnicodeEncodeError:
-        print("Summary: %d/%d within 10%%, total_loss %s" % (
+        print("Summary: %d/%d within 10%%, total_loss %s (errors in %%)" % (
             report["summary"]["within_10pct_count"],
             report["summary"]["total_ratios_mapped"],
             report["summary"]["total_loss"],
