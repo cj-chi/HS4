@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# 實驗產出（卡、截圖、JSON 較大；要追蹤報告可改為不忽略 Output/*.md 等）
+Output/
+output/
+
+# 執行時產生的檔（插件與腳本寫入）
+game_screenshot.png
+game_screenshot_fov.txt
+game_ready.txt
+load_card_request.txt
+debug-*.log
+
+# BepInEx 插件編譯
+BepInEx_HS2_PhotoToCard/bin/
+BepInEx_HS2_PhotoToCard/obj/
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.user
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# 反編譯輸出（檔案多、體積大）
+dll_decompiled/
+
+# 內含獨立 .git 的子專案（若要一併版控請改為 submodule）
+Face2Parameter/
+HS2CharEdit/
+HS2CharEdit - Copy/

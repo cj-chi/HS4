@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>HS2.PhotoToCard</AssemblyName>
+    <RootNamespace>HS2.PhotoToCard.Plugin</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <HS2Managed Condition="'$(HS2Managed)' == ''">D:\hs2\HoneySelect2_Data\Managed</HS2Managed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(HS2Managed)\Assembly-CSharp.dll')">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(HS2Managed)\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(HS2Managed)\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(HS2Managed)\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>$(HS2Managed)\UnityEngine.ScreenCaptureModule.dll</HintPath>
+    </Reference>
+    <Reference Include="IL">
+      <HintPath>$(HS2Managed)\IL.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup Condition="!Exists('$(HS2Managed)\Assembly-CSharp.dll') and Exists('refs\Assembly-CSharp.dll')">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>refs\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>refs\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>refs\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>refs\UnityEngine.ScreenCaptureModule.dll</HintPath>
+    </Reference>
+    <Reference Include="IL">
+      <HintPath>refs\IL.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <Target Name="CheckGameRefs" BeforeTargets="CoreCompile">
+    <Error Condition="!Exists('$(HS2Managed)\Assembly-CSharp.dll') and !Exists('refs\Assembly-CSharp.dll')"
+           Text="HS2 game refs missing. Set HS2Managed to your game's HS2_Data\Managed (e.g. dotnet build -p:HS2Managed=D:\hs2\HS2_Data\Managed) or copy Assembly-CSharp.dll, UnityEngine.dll, UnityEngine.CoreModule.dll into BepInEx_HS2_PhotoToCard\refs\" />
+  </Target>
+
+</Project>

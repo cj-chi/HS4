@@ -1,0 +1,16 @@
+D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2OrbitAndExciter.csproj.AssemblyReference.cache
+D:\HS4\HS2OrbitAndExciter\obj\Debug\MyPluginInfo.cs
+D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2OrbitAndExciter.GeneratedMSBuildEditorConfig.editorconfig
+D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2OrbitAndExciter.AssemblyInfoInputs.cache
+D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2OrbitAndExciter.AssemblyInfo.cs
+D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2OrbitAndExciter.csproj.CoreCompileInputs.cache
+D:\HS4\HS2OrbitAndExciter\bin\Debug\HS2OrbitAndExciter.dll
+D:\HS4\HS2OrbitAndExciter\bin\Debug\HS2OrbitAndExciter.pdb
+D:\HS4\HS2OrbitAndExciter\bin\Debug\Assembly-CSharp.dll
+D:\HS4\HS2OrbitAndExciter\bin\Debug\IL.dll
+D:\HS4\HS2OrbitAndExciter\bin\Debug\UnityEngine.CoreModule.dll
+D:\HS4\HS2OrbitAndExciter\bin\Debug\UnityEngine.dll
+D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2Orbit.C58DD4E2.Up2Date
+D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2OrbitAndExciter.dll
+D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2OrbitAndExciter.pdb
+D:\HS4\HS2OrbitAndExciter\bin\Debug\UnityEngine.IMGUIModule.dll

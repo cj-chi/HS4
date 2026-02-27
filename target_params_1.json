@@ -1,0 +1,20 @@
+{
+  "source_image": "1 (1).jfif",
+  "source_card": "AI_191856.png",
+  "card_has_trailing_data": true,
+  "face_ratios": {
+    "eye_span_to_face_width": 0.42,
+    "face_width_to_height": 0.72,
+    "mouth_width_to_face_width": 0.48,
+    "nose_width_to_face_width": 0.22,
+    "eye_size_ratio": 0.38
+  },
+  "mapped_params": {
+    "eye_span": 42.0,
+    "face_width_height": 72.0,
+    "mouth_width": 48.0,
+    "nose_width": 22.0,
+    "eye_size": 38.0
+  },
+  "note": "Apply mapped_params manually in HS2 or via plugin; ChaFile write not implemented."
+}

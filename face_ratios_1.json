@@ -1,0 +1,10 @@
+{
+  "source": "1 (1).jfif",
+  "ratios": {
+    "eye_span_to_face_width": 0.42,
+    "face_width_to_height": 0.72,
+    "mouth_width_to_face_width": 0.48,
+    "nose_width_to_face_width": 0.22,
+    "eye_size_ratio": 0.38
+  }
+}

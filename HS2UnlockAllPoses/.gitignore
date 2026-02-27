@@ -1,0 +1,4 @@
+bin/
+obj/
+refs/*.dll
+!refs/README.txt

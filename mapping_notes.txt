@@ -1,0 +1,12 @@
+Ratio-to-slider mapping (Stage 2.1)
+
+Table: ratio_to_slider_map.json
+
+  eye_span_to_face_width   -> eye_span        (scale 100, clamp 0-100)
+  face_width_to_height     -> face_width_height
+  mouth_width_to_face_width -> mouth_width
+  nose_width_to_face_width -> nose_width
+  eye_size_ratio            -> eye_size
+
+Ratios are 0-1 from face landmarks; mapped value = ratio * scale + offset, clamped to default_clamp [0, 100].
+Actual HS2/ABMX parameter names can be filled in when integrating with game or plugin.

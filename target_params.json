@@ -1,0 +1,28 @@
+{
+  "source_image": "9081374d2d746daf66024acde36ada77.JPG",
+  "source_card": "9081374d2d746daf66024acde36ada77.JPG",
+  "card_has_trailing_data": false,
+  "face_ratios": {
+    "eye_span_to_face_width": 0.42,
+    "face_width_to_height": 0.72,
+    "mouth_width_to_face_width": 0.48,
+    "nose_width_to_face_width": 0.22,
+    "eye_size_ratio": 0.38,
+    "nose_height_to_face_height": 0.18,
+    "mouth_height_to_face_height": 0.12,
+    "head_width_to_face_height": 0.72,
+    "lip_thickness_to_mouth_width": 0.25
+  },
+  "mapped_params": {
+    "eye_span": 42.0,
+    "face_width_height": 72.0,
+    "mouth_width": 48.0,
+    "nose_width": 22.0,
+    "eye_size": 38.0,
+    "nose_height": 18.0,
+    "mouth_height": 12.0,
+    "head_width": 72.0,
+    "lip_thickness": 25.0
+  },
+  "note": "Params written to ChaFile when --output-card is used (if card format supports shapeValueFace offsets)."
+}
