@@ -73,3 +73,16 @@ python compare_old_new_mediapipe.py --target-image SRC\9081374d2d746daf66024acde
 - **compare_old_new_mediapipe.py**：若傳入 `--launch-game`，從 **run_phase1** 匯入 `wait_for_ready_file`，用同一段 Popen + 等就緒；截圖沿用 **run_phase1.request_screenshot_and_wait**，**FOV 由同一 BepInEx 插件在第一次截圖時自動處理**。
 
 **總結**：啟動用 run_phase1 的 Popen + wait_for_ready_file；FOV／鏡頭、截圖、測試皆用既有插件與腳本，見 **`docs/既有已驗證腳本與流程.md`**。
+
+---
+
+## 7. 還原 HS2 插件設定（一鍵回復）
+
+若曾用 **`hs2_photo_to_card_config.py`** 或手動改過 BepInEx 的 `HS2.PhotoToCard.cfg`（例如改 RequestFile），可用同一支腳本從備份還原：
+
+```powershell
+cd D:\HS4
+python hs2_photo_to_card_config.py restore --hs2-root D:\HS2
+```
+
+多個 HS2 目錄可一次還原（重複 `--hs2-root` 即可）。備份檔名為 `HS2.PhotoToCard.cfg.backup_<日期>_<時間>`，與 cfg 同目錄。詳見 `docs/20260227_多實例HS2平行處理構想.md` §4。
