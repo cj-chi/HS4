@@ -190,7 +190,7 @@ ReloadAsync 結尾會呼叫 **UpdateShapeFaceValueFromCustomInfo()**（約 6418 
 
 **建議**：在插件中改為 **noChangeHead: true**（或依 headId 是否變更決定）；若卡牌來自同一基底、只改臉參數，頭型不變，此改動可大幅縮短 ReloadAsync 並避免隨次數變慢。若未來需支援「換頭型」的卡，可再依 headId 切換 noChangeHead。
 
-**資源未清空假說（待測試）**：我們直接呼叫 LoadFileLimited + ReloadAsync，未走遊戲的 **BeginLoadAssetBundle / EndLoadAssetBundle**，導致 `Singleton<Character>.Instance.lstLoadAssetBundleInfo` 只增不減、AssetBundle 未卸載。詳見 **docs/20260227_ReloadAsync資源累積假說.md**；驗證為真後可改為包一輪 Begin/End 或改 noChangeHead: true 再合併。
+**資源未清空假說（已驗證並修正）**：我們原先未走遊戲的 **BeginLoadAssetBundle / EndLoadAssetBundle**，導致 `lstLoadAssetBundleInfo` 只增不減、ReloadAsync 隨請求變慢。插件已改為每輪「載卡＋截圖」前呼叫 **BeginLoadAssetBundle()**、截圖完成後 **EndLoadAssetBundle()**，並維持 **noChangeHead: true**。log 驗證：有 Begin/End 後 lstCount 恆為 0，H1→H4 耗時穩定。詳見 **docs/20260227_ReloadAsync資源累積假說.md**。
 
 ### 假設與測試（analyze_plugin_timing.py）
 
@@ -199,7 +199,7 @@ ReloadAsync 結尾會呼叫 **UpdateShapeFaceValueFromCustomInfo()**（約 6418 
 | **H-A** | LoadFileLimited（H0→H2）隨請求變慢 | 解析 debug-526b9a.log 每筆 H0→H2 ms | **不成立**：前 5 筆 5–16 ms、後 5 筆 17–20 ms，整體 min=3 max=796（796 為少數離群），載卡非瓶頸。 |
 | **H-B** | ReloadAsync 本身（H1→ReloadAsync_done）變慢 | 需 log 有 "ReloadAsync done" 時間戳 | 待測：請用**已含 ReloadAsync done + AfterFixedWait** 的插件重新編譯、跑一輪 5 分鐘測試後再執行 `python analyze_plugin_timing.py`。 |
 | **H-C** | ReloadAsync 後的固定等待＋截圖前（ReloadAsync_done→H4）變慢 | 同上，拆出 AfterFixedWait→H4 | 待測：同上。 |
-| **H-D** | 整體 H1→H4（ReloadAsync＋等待）變慢 | 每筆 H1→H4 ms | **成立**：前 5 筆約 2547–3798 ms、後 5 筆約 7909–9228 ms，此階段明顯逐漸變慢。 |
+| **H-D** | 整體 H1→H4（ReloadAsync＋等待）變慢 | 每筆 H1→H4 ms | **已緩解**：加上 Begin/End 後，後 5 筆約 3313–4090 ms，不再隨請求數惡化。無 Begin/End 時曾達 12–14 s。 |
 
 **如何跑測試**：
 1. 重新編譯插件（確保含 "ReloadAsync done" 與 "AfterFixedWait" 的 log），部署到遊戲。

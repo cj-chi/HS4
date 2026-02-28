@@ -1,4 +1,4 @@
-# ReloadAsync 變慢：資源未清空假說（待測試）
+# ReloadAsync 變慢：資源未清空假說（已驗證為真）
 
 ## 現象
 
@@ -43,24 +43,34 @@
 - `Manager.Character`：`lstLoadAssetBundleInfo`、`BeginLoadAssetBundle`、`AddLoadAssetBundle`、`EndLoadAssetBundle`
 - `AIChara.ChaControl.LoadCharaFbxDataAsync`：呼叫 `Singleton<Character>.Instance.AddLoadAssetBundle(...)`
 
-## 假說（待測試）
+## 假說
 
 **「我們自己跳著呼叫載入，沒有清空資源」** 是 ReloadAsync 隨請求變慢的主要原因之一：
 
 - `lstLoadAssetBundleInfo` 與未卸載的 AssetBundle 隨請求數累積，導致後續 UnloadUnusedAssets／GC 或載入路徑變慢。
 
-**驗證方式**（擇一或並行）：
+## 驗證結果（2026-02-27）
 
-1. 在插件每次「開始載卡」前呼叫 **BeginLoadAssetBundle()**，截圖完成後呼叫 **EndLoadAssetBundle()**，觀察 ReloadAsync 耗時是否不再隨請求數上升。
-2. 或改為 **noChangeHead: true**（不重載頭、只更新臉型參數），不再觸發 LoadCharaFbxDataAsync，觀察是否同樣能消除變慢。
+**方式**：在插件每次「開始載卡」前呼叫 **BeginLoadAssetBundle()**，截圖完成後呼叫 **EndLoadAssetBundle()**，並在每輪開始時寫 log 記錄 `lstLoadAssetBundleInfo.Count`（Hlst），跑約 90 秒連續載卡＋截圖。
 
-## 若驗證為真
+**Log 證據**（`debug-526b9a.log`，`analyze_plugin_timing.py` 解析）：
 
-- 可採用的修正方向：
-  - 在插件內對每次「載卡＋截圖」一輪，包成 BeginLoadAssetBundle → （現有 Load + ReloadAsync）→ EndLoadAssetBundle；或
-  - 在僅更新臉參數、頭型不變的流程改為 noChangeHead: true，避免重複載頭與 AddLoadAssetBundle。
-- 修正後再合併回 main（或依團隊流程 combine）。
+| 項目 | 結果 |
+|------|------|
+| **Hlst lstCount (before Begin)** | 第一筆請求前為 **70**（先前未包 Begin/End 的累積）；有 Begin/End 後第 2～8 筆皆為 **0** |
+| **H1→H4（ReloadAsync+等待）** | 有 Begin/End 的後 5 筆約 3.3～4.1 s，穩定不隨請求數上升 |
+| **對比舊 log（無 Begin/End）** | 同環境中 5 筆 H1→H4 約 12～14 s，明顯變慢 |
+
+**結論**：假說 **成立**。未包 Begin/End 時 lst 只增不減（實測累積至 70）；包上 Begin/End 後每輪清空，lstCount 恆為 0，ReloadAsync 耗時穩定。
+
+## 已採用的修正
+
+- 在 **LoadCardAndScreenshot** 協程：開頭呼叫 `Singleton<Character>.Instance.BeginLoadAssetBundle()`，截圖寫入後、`_isProcessing = false` 前呼叫 `EndLoadAssetBundle()`。
+- 維持 **noChangeHead: true**（不重載頭、只更新臉型），避免觸發 LoadCharaFbxDataAsync 與 AddLoadAssetBundle，進一步減少累積與耗時。
+- 插件另寫 Hlst（lstCount）至 `debug-526b9a.log`，供 `analyze_plugin_timing.py` 日後比對用。
+
+修正已併入 main（branch `doc/reload-resource-accumulation` → main）。
 
 ---
 
-*本紀錄寫於 branch `doc/reload-resource-accumulation`，供測試與後續修正參考。*
+*本紀錄寫於 branch `doc/reload-resource-accumulation`，驗證後合併至 main。*

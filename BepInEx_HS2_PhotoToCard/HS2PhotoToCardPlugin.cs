@@ -200,6 +200,12 @@ namespace HS2.PhotoToCard.Plugin
 
         private IEnumerator LoadCardAndScreenshot(string cardPath, string requestFilePath)
         {
+            // #region agent log
+            var chr = Singleton<Character>.Instance;
+            int lstCount = chr?.lstLoadAssetBundleInfo?.Count ?? -1;
+            AppendDebugLog(requestFilePath, "Hlst", "lstLoadAssetBundleInfo.Count before Begin", "{\"lstCount\":" + lstCount + "}");
+            chr?.BeginLoadAssetBundle();
+            // #endregion
             AppendDebugLog(requestFilePath, "H0", "LoadCardAndScreenshot started", "{}");
             var chaCtrl = Singleton<CustomBase>.Instance?.chaCtrl;
             if (chaCtrl == null)
@@ -222,7 +228,8 @@ namespace HS2.PhotoToCard.Plugin
                 Singleton<Character>.Instance.customLoadGCClear = false;
                 var customBase = Singleton<CustomBase>.Instance;
                 if (customBase != null) customBase.updateCustomUI = true;
-                reloadEn = InvokeReloadAsync(chaCtrl, noChangeClothes: true, noChangeHead: false, noChangeHair: true, noChangeBody: true);
+                // noChangeHead: true = 不拆頭、不重載頭，避免 lstLoadAssetBundleInfo 累積；配合 Begin/End 每輪清空，Hlst 應恆為 0。
+                reloadEn = InvokeReloadAsync(chaCtrl, noChangeClothes: true, noChangeHead: true, noChangeHair: true, noChangeBody: true);
             }
             catch (Exception ex)
             {
@@ -236,17 +243,20 @@ namespace HS2.PhotoToCard.Plugin
             {
                 AppendDebugLog(requestFilePath, "H1", "Yielding ReloadAsync", "{}");
                 yield return reloadEn;
+                AppendDebugLog(requestFilePath, "H1", "ReloadAsync done", "{}");
             }
             else
             {
                 AppendDebugLog(requestFilePath, "H1", "ReloadAsync fallback wait", "{}");
                 yield return new WaitForEndOfFrame();
                 yield return new WaitForSeconds(3f);
+                AppendDebugLog(requestFilePath, "H1", "ReloadAsync done (fallback)", "{}");
             }
             Singleton<Character>.Instance.customLoadGCClear = true;
 
             yield return new WaitForEndOfFrame();
             yield return new WaitForSeconds(1f);
+            AppendDebugLog(requestFilePath, "H1", "AfterFixedWait", "{}");
 
             var dir = Path.GetDirectoryName(requestFilePath);
             if (string.IsNullOrEmpty(dir)) dir = @"D:\HS4\output";
@@ -324,6 +334,7 @@ namespace HS2.PhotoToCard.Plugin
                 Logger.LogError($"[PhotoToCard] Screenshot failed: {ex.Message}\n{ex.StackTrace}");
             }
 
+            Singleton<Character>.Instance?.EndLoadAssetBundle();
             _isProcessing = false;
         }
 
