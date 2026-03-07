@@ -7,6 +7,7 @@
 """
 import json
 import argparse
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -140,7 +141,46 @@ def main():
     ap.add_argument("--n-trials-stage1", type=int, default=80, help="第一輪 Optuna trial 數")
     ap.add_argument("--n-trials-stage2", type=int, default=50, help="第二輪 Optuna trial 數")
     ap.add_argument("--experiment-id", type=str, default=None, help="實驗 ID，預設 optuna_<timestamp>")
+    ap.add_argument("--from-experiment", type=Path, default=None, metavar="JSON", help="從先前實驗的 best_params_stage2_*.json 讀取 experiment_params 作為本輪參數（幾輪、範圍、步長、n_trials）")
     args = ap.parse_args()
+
+    # 未指定 --launch-game 時，改讀環境變數 HS2_EXE 或專案內 hs2_launch_path.txt（一行：exe 路徑）
+    if not args.launch_game:
+        env_exe = (os.environ.get("HS2_EXE") or "").strip()
+        if env_exe:
+            args.launch_game = Path(env_exe).expanduser().resolve()
+        else:
+            cfg = BASE / "hs2_launch_path.txt"
+            if cfg.exists():
+                try:
+                    with open(cfg, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith("#"):
+                                args.launch_game = Path(line).expanduser().resolve()
+                                break
+                except Exception:
+                    pass
+        if args.launch_game and not args.launch_game.exists():
+            args.launch_game = None
+
+    # 實驗參數：可由 CLI 或 --from-experiment 設定
+    stage1_range = 90.0
+    stage1_step = 30.0
+    stage2_range = 45.0
+    stage2_step = 15.0
+    n_trials_s1 = args.n_trials_stage1
+    n_trials_s2 = args.n_trials_stage2
+    if getattr(args, "from_experiment", None) and args.from_experiment and args.from_experiment.exists():
+        with open(args.from_experiment, "r", encoding="utf-8") as f:
+            prev = json.load(f)
+        ep = prev.get("experiment_params") or prev
+        stage1_range = float(ep.get("stage1_range", stage1_range))
+        stage1_step = float(ep.get("stage1_step", stage1_step))
+        stage2_range = float(ep.get("stage2_range", stage2_range))
+        stage2_step = float(ep.get("stage2_step", stage2_step))
+        n_trials_s1 = int(ep.get("n_trials_stage1", n_trials_s1))
+        n_trials_s2 = int(ep.get("n_trials_stage2", n_trials_s2))
 
     if not args.target_image.exists():
         raise SystemExit("Target image not found: %s" % args.target_image)
@@ -170,6 +210,10 @@ def main():
     _out("  output: %s" % exp_dir.resolve())
     _out("  request_file: %s" % request_file.resolve())
     _out("  sliders: %d" % len(slider_names))
+    if getattr(args, "from_experiment", None) and args.from_experiment:
+        _out("  (params from --from-experiment: stage1 ±%.0f step %.0f, stage2 ±%.0f step %.0f, n_trials %d/%d)" % (stage1_range, stage1_step, stage2_range, stage2_step, n_trials_s1, n_trials_s2))
+    else:
+        _out("  stage1: ±%.0f step %.0f (n_trials=%d), stage2: ±%.0f step %.0f (n_trials=%d)" % (stage1_range, stage1_step, n_trials_s1, stage2_range, stage2_step, n_trials_s2))
     _out("")
 
     if args.launch_game and Path(args.launch_game).exists():
@@ -213,12 +257,12 @@ def main():
             params = {}
             for name in slider_names:
                 start = start_params.get(name, 0.0)
-                lo = max(g_min, start - 90)
-                hi = min(g_max, start + 90)
+                lo = max(g_min, start - stage1_range)
+                hi = min(g_max, start + stage1_range)
                 if lo >= hi:
                     lo, hi = g_min, g_max
                 x = trial.suggest_float(name, lo, hi)
-                v = _align_step(x, start, 30)
+                v = _align_step(x, start, stage1_step)
                 v = max(g_min, min(g_max, v))
                 params[name] = round(v, 2)
             trial_dir = stage1_dir / ("trial_%04d" % trial.number)
@@ -235,9 +279,9 @@ def main():
             return loss
         return objective
 
-    _out("[2] Stage 1 Optuna: start ±90, step 30, n_trials=%d..." % args.n_trials_stage1)
+    _out("[2] Stage 1 Optuna: start ±%.0f, step %.0f, n_trials=%d..." % (stage1_range, stage1_step, n_trials_s1))
     study1 = optuna.create_study(direction="minimize")
-    study1.optimize(make_objective_stage1(), n_trials=args.n_trials_stage1, show_progress_bar=True)
+    study1.optimize(make_objective_stage1(), n_trials=n_trials_s1, show_progress_bar=True)
     best1 = study1.best_params
     best1_loss = study1.best_value
     _out("  Stage 1 best loss: %.4f" % best1_loss)
@@ -248,12 +292,12 @@ def main():
             params = {}
             for name in slider_names:
                 center = best1.get(name, start_params.get(name, 0.0))
-                lo = max(g_min, center - 45)
-                hi = min(g_max, center + 45)
+                lo = max(g_min, center - stage2_range)
+                hi = min(g_max, center + stage2_range)
                 if lo >= hi:
                     lo, hi = g_min, g_max
                 x = trial.suggest_float(name, lo, hi)
-                v = _align_step(x, center, 15)
+                v = _align_step(x, center, stage2_step)
                 v = max(g_min, min(g_max, v))
                 params[name] = round(v, 2)
             trial_dir = stage2_dir / ("trial_%04d" % trial.number)
@@ -270,14 +314,23 @@ def main():
             return loss
         return objective
 
-    _out("[3] Stage 2 Optuna: best1 ±45, step 15, n_trials=%d..." % args.n_trials_stage2)
+    _out("[3] Stage 2 Optuna: best1 ±%.0f, step %.0f, n_trials=%d..." % (stage2_range, stage2_step, n_trials_s2))
     study2 = optuna.create_study(direction="minimize")
-    study2.optimize(make_objective_stage2(), n_trials=args.n_trials_stage2, show_progress_bar=True)
+    study2.optimize(make_objective_stage2(), n_trials=n_trials_s2, show_progress_bar=True)
     best2 = study2.best_params
     best2_loss = study2.best_value
     _out("  Stage 2 best loss: %.4f" % best2_loss)
     _out("")
 
+    experiment_params = {
+        "rounds": 2,
+        "stage1_range": stage1_range,
+        "stage1_step": stage1_step,
+        "stage2_range": stage2_range,
+        "stage2_step": stage2_step,
+        "n_trials_stage1": n_trials_s1,
+        "n_trials_stage2": n_trials_s2,
+    }
     out_best = exp_dir / ("best_params_stage2_%s.json" % run_ts)
     with open(out_best, "w", encoding="utf-8") as f:
         json.dump({
@@ -286,8 +339,18 @@ def main():
             "best_params": best2,
             "best_loss": round(best2_loss, 4),
             "stage1_best_loss": round(best1_loss, 4),
+            "experiment_params": experiment_params,
         }, f, indent=2, ensure_ascii=False)
     _out("  Best params written: %s" % out_best)
+    manifest_path = exp_dir / ("manifest_%s.json" % run_ts)
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "experiment_id": experiment_id,
+            "run_ts": run_ts,
+            "output_files": {"best_params": str(out_best.name), "target_mediapipe": "target_mediapipe_%s.json" % run_ts},
+            "experiment_params": experiment_params,
+        }, f, indent=2, ensure_ascii=False)
+    _out("  Manifest: %s" % manifest_path)
     _out("--- run_optuna_face done ---")
     _out("  One-click restore HS2 config: python hs2_photo_to_card_config.py restore --hs2-root <HS2_path>")
 

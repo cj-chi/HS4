@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-<HS2Managed Condition="'$(HS2Managed)' == ''">D:\hs2\HS2_Data\Managed</HS2Managed>
+    <HS2Managed Condition="'$(HS2Managed)' == ''">D:\hs2\HS2_Data\Managed</HS2Managed>
     <HS2BepInEx Condition="'$(HS2BepInEx)' == ''">D:\hs2\BepInEx</HS2BepInEx>
   </PropertyGroup>
   <ItemGroup>

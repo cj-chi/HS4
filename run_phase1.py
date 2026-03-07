@@ -12,6 +12,7 @@
 """
 import json
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -96,12 +97,25 @@ def request_screenshot_and_wait(card_path: Path, request_file: Path, dest_screen
     dest_screenshot.parent.mkdir(parents=True, exist_ok=True)
     deadline = time.monotonic() + timeout_sec
     last_progress = time.monotonic()
+    # #region agent log
+    wait_start = time.monotonic()
+    # #endregion
     while time.monotonic() < deadline:
         if screenshot_path.exists():
             try:
                 mtime = screenshot_path.stat().st_mtime
                 if mtime > request_write_time:
                     shutil.copy2(screenshot_path, dest_screenshot)
+                    # #region agent log
+                    try:
+                        elapsed = round(time.monotonic() - wait_start, 2)
+                        import json as _j
+                        _lp = Path(__file__).resolve().parent / "debug-e56dbd.log"
+                        with open(_lp, "a", encoding="utf-8") as _f:
+                            _f.write(_j.dumps({"sessionId": "e56dbd", "hypothesisId": "H1,H3", "location": "run_phase1.py:screenshot_ok", "message": "screenshot_received", "data": {"elapsed_sec": elapsed, "timeout_sec": timeout_sec}, "timestamp": int(time.time() * 1000)}) + "\n")
+                    except Exception:
+                        pass
+                    # #endregion
                     return True
             except OSError:
                 time.sleep(poll_interval)
@@ -112,6 +126,15 @@ def request_screenshot_and_wait(card_path: Path, request_file: Path, dest_screen
             _out("  Waiting for game screenshot... (%ds / %ds) HS2 in CharaCustom + plugin?" % (elapsed, timeout_sec))
             last_progress = now
         time.sleep(poll_interval)
+    # #region agent log
+    try:
+        import json as _j
+        _lp = Path(__file__).resolve().parent / "debug-e56dbd.log"
+        with open(_lp, "a", encoding="utf-8") as _f:
+            _f.write(_j.dumps({"sessionId": "e56dbd", "hypothesisId": "H3", "location": "run_phase1.py:screenshot_timeout", "message": "screenshot_timeout", "data": {"elapsed_sec": timeout_sec}, "timestamp": int(time.time() * 1000)}) + "\n")
+    except Exception:
+        pass
+    # #endregion
     return False
 
 
@@ -148,6 +171,26 @@ def main():
     ap.add_argument("--ready-file", type=Path, default=None, help="就緒檔路徑，預設為請求檔同目錄的 game_ready.txt")
     ap.add_argument("--map", type=Path, default=BASE / "ratio_to_slider_map.json", help="ratio_to_slider_map.json")
     args = ap.parse_args()
+
+    # 未指定 --launch-game 時，改讀環境變數 HS2_EXE 或專案內 hs2_launch_path.txt
+    if not args.launch_game:
+        env_exe = (os.environ.get("HS2_EXE") or "").strip()
+        if env_exe:
+            args.launch_game = Path(env_exe).expanduser().resolve()
+        else:
+            cfg = BASE / "hs2_launch_path.txt"
+            if cfg.exists():
+                try:
+                    with open(cfg, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith("#"):
+                                args.launch_game = Path(line).expanduser().resolve()
+                                break
+                except Exception:
+                    pass
+        if args.launch_game and not args.launch_game.exists():
+            args.launch_game = None
 
     if not args.target_image.exists():
         raise SystemExit("Target image not found: %s" % args.target_image)

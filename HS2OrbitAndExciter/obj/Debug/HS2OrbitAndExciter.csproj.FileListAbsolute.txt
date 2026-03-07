@@ -14,3 +14,4 @@ D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2Orbit.C58DD4E2.Up2Date
 D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2OrbitAndExciter.dll
 D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2OrbitAndExciter.pdb
 D:\HS4\HS2OrbitAndExciter\bin\Debug\UnityEngine.IMGUIModule.dll
+D:\HS4\HS2OrbitAndExciter\obj\Debug\HS2OrbitAndExciter.sourcelink.json

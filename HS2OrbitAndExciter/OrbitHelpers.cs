@@ -16,7 +16,7 @@ namespace HS2OrbitAndExciter
         public const string BoneChest = "cf_J_Mune00";
         public const string BonePelvis = "cf_J_Kokan";
 
-        public static ChaControl[] GetChaFemales(HScene hScene)
+        public static ChaControl[]? GetChaFemales(HScene hScene)
         {
             if (hScene == null) return null;
             var t = Traverse.Create(hScene);
@@ -36,7 +36,7 @@ namespace HS2OrbitAndExciter
         }
 
         /// <summary>Six focus indices: 0=Head, 1=Chest, 2=Pelvis (female0), 3=Head2, 4=Chest2, 5=Pelvis2 (female1).</summary>
-        public static Vector3? GetFocusPosition(ChaControl[] chaFemales, int focusIndex, Transform transBase)
+        public static Vector3? GetFocusPosition(ChaControl[]? chaFemales, int focusIndex, Transform transBase)
         {
             if (chaFemales == null || transBase == null) return null;
             string bone;
@@ -57,7 +57,7 @@ namespace HS2OrbitAndExciter
         }
 
         /// <summary>Max focus count: 6 if two females, else 3.</summary>
-        public static int GetMaxFocusIndex(ChaControl[] chaFemales)
+        public static int GetMaxFocusIndex(ChaControl[]? chaFemales)
         {
             if (chaFemales == null || chaFemales.Length == 0) return 0;
             if (chaFemales.Length > 1 && chaFemales[1] != null && chaFemales[1].objBodyBone != null)
@@ -73,14 +73,14 @@ namespace HS2OrbitAndExciter
         }
 
         /// <summary>Infer current clothes stage 0..3 from first character; return sequence index (0..5) so next step is from current state.</summary>
-        public static int GetClothesSequenceIndexFromCurrent(ChaControl[] chaFemales)
+        public static int GetClothesSequenceIndexFromCurrent(ChaControl[]? chaFemales)
         {
             int stage = GetCurrentClothesStage(chaFemales);
             return stage;
         }
 
         /// <summary>0=Full, 1=Half, 2=KeepAccessories, 3=FullOff. Sampled from first female via reflection (game API may vary).</summary>
-        private static int GetCurrentClothesStage(ChaControl[] chaFemales)
+        private static int GetCurrentClothesStage(ChaControl[]? chaFemales)
         {
             if (chaFemales == null || chaFemales.Length == 0) return 0;
             var c = chaFemales[0];
@@ -98,7 +98,7 @@ namespace HS2OrbitAndExciter
         }
 
         /// <summary>Clothes stage 0=Full, 1=Half, 2=KeepAccessories, 3=FullOff. Apply to all characters in HScene.</summary>
-        public static void SetClothesStage(ChaControl[] chaFemales, ChaControl[] chaMales, int stage)
+        public static void SetClothesStage(ChaControl[]? chaFemales, ChaControl[]? chaMales, int stage)
         {
             void ApplyTo(ChaControl c)
             {
@@ -129,7 +129,7 @@ namespace HS2OrbitAndExciter
                 foreach (var c in chaMales) ApplyTo(c);
         }
 
-        public static ChaControl[] GetChaMales(HScene hScene)
+        public static ChaControl[]? GetChaMales(HScene hScene)
         {
             if (hScene == null) return null;
             var t = Traverse.Create(hScene);
@@ -152,7 +152,7 @@ namespace HS2OrbitAndExciter
         }
 
         /// <summary>Pick a random pose different from current (exclude current, no repeat).</summary>
-        public static HScene.AnimationListInfo PickNextPose(HScene.AnimationListInfo current, List<HScene.AnimationListInfo> all)
+        public static HScene.AnimationListInfo? PickNextPose(HScene.AnimationListInfo? current, List<HScene.AnimationListInfo> all)
         {
             if (all == null || all.Count == 0) return null;
             var exclude = new List<HScene.AnimationListInfo>(all);

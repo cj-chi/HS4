@@ -17,7 +17,7 @@ namespace HS2OrbitAndExciter
         private static readonly float[] AnglePresets = { 0f, 45f, 90f, 135f, 180f };
 
         private bool _orbitActive;
-        private BaseCameraControl_Ver2.NoCtrlFunc _savedNoCtrlCondition;
+        private BaseCameraControl_Ver2.NoCtrlFunc? _savedNoCtrlCondition;
 
         private float _startOrbitY;
         private int _orbitPhase;
@@ -157,7 +157,7 @@ namespace HS2OrbitAndExciter
             }
         }
 
-        private static HScene GetHScene()
+        private static HScene? GetHScene()
         {
             if (!Singleton<HSceneManager>.IsInstance())
                 return null;

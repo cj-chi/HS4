@@ -17,7 +17,7 @@ namespace HS2OrbitAndExciter
 
         private bool _visible;
         private Rect _windowRect = new Rect(100, 100, 420, 380);
-        private GUIStyle _labelStyle;
+        private GUIStyle? _labelStyle;
         private bool _stylesInitialized;
         private int _onGuiCallCount;
 

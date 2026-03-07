@@ -5,6 +5,7 @@
 供 run_onedim_face 等需要「每次產出＋比較結果紀錄」的流程使用。
 """
 import json
+import time
 from pathlib import Path
 
 # 與 run_optuna_face 一致：失敗時回傳大數
@@ -20,6 +21,7 @@ def evaluate_one_guess_and_record(
     run_ts,
     screenshot_timeout,
     progress_interval,
+    trial_index=None,
 ):
     """
     給定一組 params、目標 target_ratios，產一張卡 → 請求截圖 → MediaPipe → 寫入比較紀錄（errors_percent 百分比）→ 回傳 total_loss。
@@ -55,6 +57,9 @@ def evaluate_one_guess_and_record(
         f.write(new_trailing)
 
     dest = screenshots_dir / ("screenshot_00_%s.png" % run_ts)
+    # #region agent log
+    t0 = time.perf_counter()
+    # #endregion
     ok = request_screenshot_and_wait(
         card_path.resolve(),
         Path(request_file),
@@ -62,11 +67,36 @@ def evaluate_one_guess_and_record(
         timeout_sec=screenshot_timeout,
         progress_interval=progress_interval,
     )
+    # #region agent log
+    t1 = time.perf_counter()
+    screenshot_wait_sec = round(t1 - t0, 2)
+    # #endregion
     if not ok or not dest.exists():
+        # #region agent log
+        try:
+            _lp = Path(__file__).resolve().parent / "debug-e56dbd.log"
+            with open(_lp, "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({"sessionId": "e56dbd", "hypothesisId": "H3,H4", "location": "evaluate_face_guess.py:trial_timeout", "message": "trial_timeout", "data": {"trial_index": trial_index, "trial_dir": str(trial_dir), "screenshot_wait_sec": screenshot_wait_sec}, "timestamp": int(time.time() * 1000)}) + "\n")
+        except Exception:
+            pass
+        # #endregion
         return FAIL_LOSS
 
     try:
+        # #region agent log
+        t_mp0 = time.perf_counter()
+        # #endregion
         actual_ratios = extract_ratios(dest)
+        # #region agent log
+        mediapipe_sec = round(time.perf_counter() - t_mp0, 2)
+        total_sec = round(t1 - t0 + (time.perf_counter() - t_mp0), 2)
+        try:
+            _lp = Path(__file__).resolve().parent / "debug-e56dbd.log"
+            with open(_lp, "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({"sessionId": "e56dbd", "hypothesisId": "H1,H2,H3,H4", "location": "evaluate_face_guess.py:trial_timing", "message": "trial_timing", "data": {"trial_index": trial_index, "screenshot_wait_sec": screenshot_wait_sec, "mediapipe_sec": mediapipe_sec, "total_sec": total_sec, "trial_dir": str(trial_dir)}, "timestamp": int(time.time() * 1000)}) + "\n")
+        except Exception:
+            pass
+        # #endregion
     except Exception:
         return FAIL_LOSS
     errors, contributions, total_loss = _compute_errors_and_loss(target_ratios, actual_ratios)

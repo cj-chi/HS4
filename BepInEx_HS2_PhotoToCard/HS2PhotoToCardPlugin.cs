@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections;
 using System.IO;
 using System.Reflection;
@@ -13,6 +14,16 @@ using UnityEngine.SceneManagement;
 
 namespace HS2.PhotoToCard.Plugin
 {
+    /// <summary>樹狀節點：全身骨骼之一，用於除錯選單與 2D 點顯示。</summary>
+    public class BoneNode
+    {
+        public string Name;
+        public Transform Transform;
+        public List<BoneNode> Children = new List<BoneNode>();
+        public bool Show;
+        public bool Foldout = true;
+    }
+
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     public class HS2PhotoToCardPlugin : BaseUnityPlugin
     {
@@ -26,6 +37,25 @@ namespace HS2.PhotoToCard.Plugin
         private bool _readyFileWritten;
         private bool _hasZoomedThisSession;
         private float _screenshotFov = -1f;
+
+        // 方案 A：2D 骨骼除錯選單與顯示
+        private ConfigEntry<KeyCode> _boneDebugToggleKey;
+        private bool _boneDebugVisible;
+        private BoneNode _boneRoot;
+        private ChaControl _boneTreeChaCtrl;
+        private Vector2 _boneMenuScroll;
+        private const float BoneMenuWidth = 320f;
+        private const float BoneMenuMaxHeightRatio = 0.85f;
+        private const int BoneWindowId = 0x7b0e;
+        private const float DotSize = 22f;
+        private const float LabelMaxWidth = 220f;
+        private const float LabelHeight = 22f;
+        private const int LabelFontSize = 16;
+        private static GUIStyle _dotStyle;
+        private static GUIStyle _labelStyle;
+        private static GUIStyle _labelBgStyle;
+        private Rect _boneMenuRect;
+        private bool _hideTextures;
 
         private void Awake()
         {
@@ -52,6 +82,8 @@ namespace HS2.PhotoToCard.Plugin
             _lastCheckTime = 0f;
             _isProcessing = false;
             _readyFileWritten = false;
+            _boneDebugToggleKey = Config.Bind("Debug", "BoneDebugToggleKey", KeyCode.ScrollLock, "Key to toggle bone debug menu (tree + 2D dots). Only in CharaCustom. Default: ScrollLock (冷門不易誤觸).");
+            _boneDebugVisible = false;
             Logger.LogInfo($"{PluginInfo.PLUGIN_NAME} v{PluginInfo.PLUGIN_VERSION} loaded. Request file: {_requestFilePath.Value}");
             if (_autoEnterCharaCustom.Value)
             {
@@ -77,9 +109,19 @@ namespace HS2.PhotoToCard.Plugin
 
         private void Update()
         {
-            if (_isProcessing) return;
-
             var sceneName = SceneManager.GetActiveScene().name;
+            if (sceneName == "CharaCustom" && Input.GetKeyDown(_boneDebugToggleKey.Value))
+            {
+                if (_boneDebugVisible)
+                {
+                    var chaCtrl = Singleton<CustomBase>.Instance?.chaCtrl;
+                    CloseBoneDebugAndRestore(chaCtrl);
+                }
+                else
+                    _boneDebugVisible = true;
+            }
+
+            if (_isProcessing) return;
 
             if (sceneName == "CharaCustom" && !_readyFileWritten)
             {
@@ -367,6 +409,181 @@ namespace HS2.PhotoToCard.Plugin
                 return en;
             }
             catch { return null; }
+        }
+
+        // ---------- 方案 A：全身骨骼樹狀選單 + 2D 點顯示 ----------
+
+        private static BoneNode BuildBoneTree(Transform tr)
+        {
+            if (tr == null) return null;
+            var node = new BoneNode { Name = tr.name, Transform = tr, Show = false };
+            for (int i = 0; i < tr.childCount; i++)
+            {
+                var child = BuildBoneTree(tr.GetChild(i));
+                if (child != null) node.Children.Add(child);
+            }
+            return node;
+        }
+
+        private void EnsureBoneTree(ChaControl chaCtrl)
+        {
+            if (chaCtrl == null) return;
+            if (_boneTreeChaCtrl != chaCtrl || _boneRoot == null)
+            {
+                _boneTreeChaCtrl = chaCtrl;
+                var rootTr = chaCtrl.objBodyBone != null ? chaCtrl.objBodyBone.transform : null;
+                _boneRoot = rootTr != null ? BuildBoneTree(rootTr) : null;
+            }
+        }
+
+        private void DrawBoneTreeRecursive(BoneNode node, int depth)
+        {
+            if (node == null) return;
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(depth * 12f);
+            if (node.Children.Count > 0)
+            {
+                node.Foldout = GUILayout.Toggle(node.Foldout, node.Foldout ? "▼" : "▶", GUILayout.Width(20f));
+            }
+            else
+            {
+                GUILayout.Space(20f);
+            }
+            bool newShow = GUILayout.Toggle(node.Show, "", GUILayout.Width(18f));
+            if (newShow != node.Show) node.Show = newShow;
+            var nameContent = new GUIContent(node.Name);
+            GUILayout.Label(nameContent, GUILayout.MaxWidth(LabelMaxWidth));
+            GUILayout.EndHorizontal();
+            if (node.Foldout && node.Children.Count > 0)
+            {
+                for (int i = 0; i < node.Children.Count; i++)
+                    DrawBoneTreeRecursive(node.Children[i], depth + 1);
+            }
+        }
+
+        private void CollectVisibleBones(BoneNode node, List<BoneNode> outList)
+        {
+            if (node == null) return;
+            if (node.Show && node.Transform != null) outList.Add(node);
+            foreach (var c in node.Children) CollectVisibleBones(c, outList);
+        }
+
+        private static void SetCharacterRenderersEnabled(ChaControl chaCtrl, bool enabled)
+        {
+            if (chaCtrl == null) return;
+            var renderers = chaCtrl.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+                renderers[i].enabled = enabled;
+        }
+
+        private void CloseBoneDebugAndRestore(ChaControl chaCtrl)
+        {
+            _boneDebugVisible = false;
+            if (_hideTextures && chaCtrl != null)
+            {
+                SetCharacterRenderersEnabled(chaCtrl, true);
+                _hideTextures = false;
+            }
+        }
+
+        private void DrawBoneDebugWindow(int id)
+        {
+            GUILayout.BeginVertical();
+            GUILayout.Label("拖曳此處移動選單", GUILayout.Height(18f));
+            GUI.DragWindow(new Rect(0, 0, BoneMenuWidth, 22f));
+
+            if (GUILayout.Button("關閉骨骼除錯 (熱鍵)"))
+            {
+                var chaCtrl = Singleton<CustomBase>.Instance?.chaCtrl;
+                CloseBoneDebugAndRestore(chaCtrl);
+            }
+
+            bool newHide = GUILayout.Toggle(_hideTextures, "只顯示骨骼（隱藏所有貼圖）");
+            if (newHide != _hideTextures)
+            {
+                var chaCtrl = Singleton<CustomBase>.Instance?.chaCtrl;
+                _hideTextures = newHide;
+                if (chaCtrl != null)
+                    SetCharacterRenderersEnabled(chaCtrl, !_hideTextures);
+            }
+
+            _boneMenuScroll = GUILayout.BeginScrollView(_boneMenuScroll, GUILayout.Height(Mathf.Min(Screen.height * BoneMenuMaxHeightRatio, 600f) - 80f));
+            DrawBoneTreeRecursive(_boneRoot, 0);
+            GUILayout.EndScrollView();
+
+            GUILayout.EndVertical();
+        }
+
+        private void OnGUI()
+        {
+            if (!_boneDebugVisible) return;
+            if (SceneManager.GetActiveScene().name != "CharaCustom") return;
+            var customBase = Singleton<CustomBase>.Instance;
+            var chaCtrl = customBase?.chaCtrl;
+            if (chaCtrl == null) return;
+
+            EnsureBoneTree(chaCtrl);
+            if (_boneRoot == null) return;
+
+            float menuHeight = Mathf.Min(Screen.height * BoneMenuMaxHeightRatio, 600f);
+            float winW = BoneMenuWidth;
+            float winH = menuHeight + 60f;
+            if (_boneMenuRect.width < 1f)
+                _boneMenuRect = new Rect(8f, 8f, winW, winH);
+            _boneMenuRect = GUI.Window(BoneWindowId, _boneMenuRect, DrawBoneDebugWindow, "骨骼除錯");
+
+            // 2D 點：僅對勾選的骨骼畫在螢幕上（較大點 + 大字 + 深色底標籤）
+            var cam = Camera.main;
+            if (cam == null) return;
+
+            if (_dotStyle == null)
+            {
+                _dotStyle = new GUIStyle(GUI.skin.box);
+                _dotStyle.normal.background = MakeTex(2, 2, new Color(1f, 0.9f, 0.2f, 0.98f));
+            }
+            if (_labelStyle == null)
+            {
+                _labelStyle = new GUIStyle(GUI.skin.label);
+                _labelStyle.fontSize = LabelFontSize;
+                _labelStyle.normal.textColor = Color.yellow;
+            }
+            if (_labelBgStyle == null)
+            {
+                _labelBgStyle = new GUIStyle(GUI.skin.box);
+                _labelBgStyle.normal.background = MakeTex(2, 2, new Color(0.1f, 0.1f, 0.1f, 0.92f));
+            }
+
+            var visibleList = new List<BoneNode>();
+            CollectVisibleBones(_boneRoot, visibleList);
+            float half = DotSize * 0.5f;
+            float labelTopOffset = half + 4f;
+            foreach (var n in visibleList)
+            {
+                if (n.Transform == null) continue;
+                Vector3 world = n.Transform.position;
+                Vector3 screen = cam.WorldToScreenPoint(world);
+                if (screen.z <= 0f) continue;
+                float guiY = Screen.height - screen.y;
+                Rect dotRect = new Rect(screen.x - half, guiY - half, DotSize, DotSize);
+                GUI.Box(dotRect, "", _dotStyle);
+                float labelY = guiY - half - labelTopOffset - LabelHeight;
+                Rect labelRect = new Rect(screen.x - LabelMaxWidth * 0.5f, labelY, LabelMaxWidth, LabelHeight);
+                if (labelRect.y >= 0 && labelRect.y < Screen.height - LabelHeight)
+                {
+                    GUI.Box(labelRect, "", _labelBgStyle);
+                    GUI.Label(labelRect, n.Name, _labelStyle);
+                }
+            }
+        }
+
+        private static Texture2D MakeTex(int w, int h, Color col)
+        {
+            var tex = new Texture2D(w, h);
+            for (int x = 0; x < w; x++)
+                for (int y = 0; y < h; y++)
+                    tex.SetPixel(x, y, col);
+            tex.Apply();
+            return tex;
         }
     }
 }

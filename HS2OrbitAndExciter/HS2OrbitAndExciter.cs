@@ -9,14 +9,14 @@ namespace HS2OrbitAndExciter
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     public class HS2OrbitAndExciter : BaseUnityPlugin
     {
-        internal static ManualLogSource Log;
+        internal static ManualLogSource? Log;
 
-        internal static ConfigEntry<float> OrbitTimePer360;
-        internal static ConfigEntry<float> ExcitementTriggerDelaySeconds;
-        internal static ConfigEntry<int> OrbitCountBeforeRandom;
-        internal static ConfigEntry<int> OrbitCountBeforePoseChange;
-        internal static ConfigEntry<bool> ChangePoseOnCycle;
-        internal static ConfigEntry<bool> ClothesChangeEnabled;
+        internal static ConfigEntry<float>? OrbitTimePer360;
+        internal static ConfigEntry<float>? ExcitementTriggerDelaySeconds;
+        internal static ConfigEntry<int>? OrbitCountBeforeRandom;
+        internal static ConfigEntry<int>? OrbitCountBeforePoseChange;
+        internal static ConfigEntry<bool>? ChangePoseOnCycle;
+        internal static ConfigEntry<bool>? ClothesChangeEnabled;
 
         private static void PatchSafe(Harmony harmony, System.Type patchType)
         {

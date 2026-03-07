@@ -36,6 +36,12 @@ python run_phase1.py --launch-game "D:\HS2\HoneySelect2.exe" --target-image SRC\
 
 把 `D:\HS2\HoneySelect2.exe` 換成你的實際路徑即可。
 
+**不想每次加 `--launch-game` 時**：在專案根目錄放 **`hs2_launch_path.txt`**，裡面**一行**寫 exe 路徑（`#` 開頭為註解）。例如：
+```
+D:\HS2\HoneySelect2.exe
+```
+則 **run_onedim_face.py**、**run_optuna_face.py**、**run_phase1.py** 未傳 `--launch-game` 時會自動用該路徑啟動 HS2。也可設環境變數 **`HS2_EXE`**（優先於檔案）。
+
 ---
 
 ## 3. 新舊版比對流程也要自動啟動 HS2 時
