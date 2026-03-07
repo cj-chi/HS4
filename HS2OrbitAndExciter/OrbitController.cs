@@ -16,8 +16,14 @@ namespace HS2OrbitAndExciter
 
         private static readonly float[] AnglePresets = { 0f, 45f, 90f, 135f, 180f };
 
+        /// <summary>Single delegate we set during orbit so we never save/restore our own and get stuck.</summary>
+        private static readonly BaseCameraControl_Ver2.NoCtrlFunc NoCtrlOrbit = () => false;
+
+        private const float HotkeyCooldownSeconds = 0.25f;
+
         private bool _orbitActive;
         private BaseCameraControl_Ver2.NoCtrlFunc? _savedNoCtrlCondition;
+        private float _lastHotkeyTime = -999f;
 
         private float _startOrbitY;
         private int _orbitPhase;
@@ -31,6 +37,9 @@ namespace HS2OrbitAndExciter
         {
             if (Input.GetKey(Modifier2) && Input.GetKey(Modifier) && Input.GetKeyDown(OrbitHotkey))
             {
+                if (Time.unscaledTime - _lastHotkeyTime < HotkeyCooldownSeconds)
+                    return;
+                _lastHotkeyTime = Time.unscaledTime;
                 _orbitActive = !_orbitActive;
                 OnOrbitToggled(_orbitActive);
             }
@@ -47,7 +56,7 @@ namespace HS2OrbitAndExciter
             if (ctrl == null) return;
 
             // Re-apply camera takeover every frame (e.g. after ChangeAnimation sets camera flag)
-            ctrl.NoCtrlCondition = () => false;
+            ctrl.NoCtrlCondition = NoCtrlOrbit;
 
             float orbitTime = HS2OrbitAndExciter.OrbitTimePer360?.Value ?? 10f;
             if (orbitTime <= 0f) orbitTime = 10f;
@@ -135,8 +144,10 @@ namespace HS2OrbitAndExciter
 
             if (active)
             {
-                _savedNoCtrlCondition = ctrl.NoCtrlCondition;
-                ctrl.NoCtrlCondition = () => false;
+                // Only save game's delegate; never save our own or we restore it on stop and camera stays locked
+                if (ctrl.NoCtrlCondition != NoCtrlOrbit)
+                    _savedNoCtrlCondition = ctrl.NoCtrlCondition;
+                ctrl.NoCtrlCondition = NoCtrlOrbit;
                 _startOrbitY = ((ctrl.CameraAngle.y % 360f) + 360f) % 360f;
                 _orbitPhase = 0;
                 _orbitAccumulatedDegrees = 0f;
@@ -152,8 +163,10 @@ namespace HS2OrbitAndExciter
             }
             else
             {
-                if (_savedNoCtrlCondition != null)
+                if (_savedNoCtrlCondition != null && _savedNoCtrlCondition != NoCtrlOrbit)
                     ctrl.NoCtrlCondition = _savedNoCtrlCondition;
+                else
+                    ctrl.NoCtrlCondition = () => true; // ensure player gets control back if we had no valid saved
             }
         }
 

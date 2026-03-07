@@ -21,6 +21,12 @@ namespace HS2OrbitAndExciter
         private bool _stylesInitialized;
         private int _onGuiCallCount;
 
+        // Per-field strings so TextField isn't reset from config every frame (which hides typing)
+        private string _orbitTimeStr = "";
+        private string _orbitCountRandomStr = "";
+        private string _orbitCountPoseStr = "";
+        private string _excitementDelayStr = "";
+
         // #region agent log
         private static void DebugLog(string location, string message, object data, string hypothesisId)
         {
@@ -59,6 +65,15 @@ namespace HS2OrbitAndExciter
             }
             if (!_visible) return;
 
+            // Sync text fields from config when window just became visible (avoids empty on first open)
+            if (Event.current != null && Event.current.type == EventType.Layout && _orbitTimeStr == "" && HS2OrbitAndExciter.OrbitTimePer360 != null)
+            {
+                _orbitTimeStr = HS2OrbitAndExciter.OrbitTimePer360.Value.ToString("F1");
+                _orbitCountRandomStr = (HS2OrbitAndExciter.OrbitCountBeforeRandom?.Value ?? 0).ToString();
+                _orbitCountPoseStr = (HS2OrbitAndExciter.OrbitCountBeforePoseChange?.Value ?? 2).ToString();
+                _excitementDelayStr = (HS2OrbitAndExciter.ExcitementTriggerDelaySeconds?.Value ?? 0f).ToString("F1");
+            }
+
             // #region agent log
             _onGuiCallCount++;
             if (_onGuiCallCount <= 3)
@@ -75,31 +90,37 @@ namespace HS2OrbitAndExciter
             GUILayout.Label("環視 (Orbit)", GUI.skin.box);
             if (HS2OrbitAndExciter.OrbitTimePer360 != null)
             {
-                float ot = HS2OrbitAndExciter.OrbitTimePer360.Value;
+                if (GUI.GetNameOfFocusedControl() != "OrbitTimePer360")
+                    _orbitTimeStr = HS2OrbitAndExciter.OrbitTimePer360.Value.ToString("F1");
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("360° 一圈秒數 (OrbitTimePer360):", _labelStyle, GUILayout.Width(220));
-                string s = GUILayout.TextField(ot.ToString("F1"), GUILayout.Width(60));
-                if (float.TryParse(s, out float v) && v > 0.1f && v <= 120f)
+                GUI.SetNextControlName("OrbitTimePer360");
+                _orbitTimeStr = GUILayout.TextField(_orbitTimeStr, GUILayout.Width(60));
+                if (float.TryParse(_orbitTimeStr, out float v) && v > 0.1f && v <= 120f)
                     HS2OrbitAndExciter.OrbitTimePer360.Value = v;
                 GUILayout.EndHorizontal();
             }
             if (HS2OrbitAndExciter.OrbitCountBeforeRandom != null)
             {
-                int n = HS2OrbitAndExciter.OrbitCountBeforeRandom.Value;
+                if (GUI.GetNameOfFocusedControl() != "OrbitCountBeforeRandom")
+                    _orbitCountRandomStr = HS2OrbitAndExciter.OrbitCountBeforeRandom.Value.ToString();
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("幾次 360 後亂數焦點/角度 (0=不亂數):", _labelStyle, GUILayout.Width(220));
-                string s = GUILayout.TextField(n.ToString(), GUILayout.Width(60));
-                if (int.TryParse(s, out int v) && v >= 0 && v <= 99)
+                GUI.SetNextControlName("OrbitCountBeforeRandom");
+                _orbitCountRandomStr = GUILayout.TextField(_orbitCountRandomStr, GUILayout.Width(60));
+                if (int.TryParse(_orbitCountRandomStr, out int v) && v >= 0 && v <= 99)
                     HS2OrbitAndExciter.OrbitCountBeforeRandom.Value = v;
                 GUILayout.EndHorizontal();
             }
             if (HS2OrbitAndExciter.OrbitCountBeforePoseChange != null)
             {
-                int n = HS2OrbitAndExciter.OrbitCountBeforePoseChange.Value;
+                if (GUI.GetNameOfFocusedControl() != "OrbitCountBeforePoseChange")
+                    _orbitCountPoseStr = HS2OrbitAndExciter.OrbitCountBeforePoseChange.Value.ToString();
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("幾次 360 後換姿勢:", _labelStyle, GUILayout.Width(220));
-                string s = GUILayout.TextField(n.ToString(), GUILayout.Width(60));
-                if (int.TryParse(s, out int v) && v >= 1 && v <= 99)
+                GUI.SetNextControlName("OrbitCountBeforePoseChange");
+                _orbitCountPoseStr = GUILayout.TextField(_orbitCountPoseStr, GUILayout.Width(60));
+                if (int.TryParse(_orbitCountPoseStr, out int v) && v >= 1 && v <= 99)
                     HS2OrbitAndExciter.OrbitCountBeforePoseChange.Value = v;
                 GUILayout.EndHorizontal();
             }
@@ -112,11 +133,13 @@ namespace HS2OrbitAndExciter
             GUILayout.Label("興奮劑 (Exciter)", GUI.skin.box);
             if (HS2OrbitAndExciter.ExcitementTriggerDelaySeconds != null)
             {
-                float ex = HS2OrbitAndExciter.ExcitementTriggerDelaySeconds.Value;
+                if (GUI.GetNameOfFocusedControl() != "ExcitementTriggerDelay")
+                    _excitementDelayStr = HS2OrbitAndExciter.ExcitementTriggerDelaySeconds.Value.ToString("F1");
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("滿量表後幾秒才觸發 (0=馬上，點滑鼠仍馬上):", _labelStyle, GUILayout.Width(260));
-                string s = GUILayout.TextField(ex.ToString("F1"), GUILayout.Width(60));
-                if (float.TryParse(s, out float v) && v >= 0f && v <= 10f)
+                GUI.SetNextControlName("ExcitementTriggerDelay");
+                _excitementDelayStr = GUILayout.TextField(_excitementDelayStr, GUILayout.Width(60));
+                if (float.TryParse(_excitementDelayStr, out float v) && v >= 0f && v <= 10f)
                 {
                     HS2OrbitAndExciter.ExcitementTriggerDelaySeconds.Value = v;
                     Patches.ExciterState.DelaySecondsAtFull = v;
