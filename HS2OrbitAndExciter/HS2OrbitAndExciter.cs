@@ -19,6 +19,10 @@ namespace HS2OrbitAndExciter
         internal static ConfigEntry<int>? OrbitCountBeforePoseChange;
         internal static ConfigEntry<bool>? ChangePoseOnCycle;
         internal static ConfigEntry<bool>? ClothesChangeEnabled;
+        /// <summary>When orbit is on: enable game auto action (isAutoActionChange + initiative) so user rarely needs to operate.</summary>
+        internal static ConfigEntry<bool>? OrbitAutoActionEnabled;
+        /// <summary>When orbit is on and stuck at checkpoint (Idle, no selection): auto-advance after this many seconds (0 = use game auto only).</summary>
+        internal static ConfigEntry<float>? OrbitCheckpointTimeoutSeconds;
 
         private static void PatchSafe(Harmony harmony, System.Type patchType)
         {
@@ -57,6 +61,10 @@ namespace HS2OrbitAndExciter
                     "Seconds at full gauge before auto trigger (0 = immediate, range 0–10). Mouse click still triggers immediately.");
                 FeelAddPerSecondWhenOrbit = Config.Bind("Exciter", "FeelAddPerSecondWhenOrbit", 0.1f,
                     "When orbit (Ctrl+Shift+O) is active, add this much to excitement gauge per second (0 = only game default / mouse). 0.1 = fill in 10 s.");
+                OrbitAutoActionEnabled = Config.Bind("Orbit", "OrbitAutoActionEnabled", true,
+                    "When orbit is on: enable game auto action so next pose/action is chosen automatically (user rarely needs to operate).");
+                OrbitCheckpointTimeoutSeconds = Config.Bind("Orbit", "OrbitCheckpointTimeoutSeconds", 5f,
+                    "When orbit is on and stuck at checkpoint (Idle, no selection): auto-advance after this many seconds. 0 = only use game auto, no forced advance.");
 
                 Patches.ExciterState.DelaySecondsAtFull = ExcitementTriggerDelaySeconds.Value;
                 ExcitementTriggerDelaySeconds.SettingChanged += (_, __) => Patches.ExciterState.DelaySecondsAtFull = ExcitementTriggerDelaySeconds.Value;

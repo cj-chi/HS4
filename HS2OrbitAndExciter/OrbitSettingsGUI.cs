@@ -16,6 +16,7 @@ namespace HS2OrbitAndExciter
         private static readonly string DebugLogPathFallback = System.IO.Path.Combine(@"D:\hs2", "BepInEx", "debug-069a45.log");
 
         private bool _visible;
+        private bool _needSyncFromConfig; // 每次打開視窗時從 config 同步顯示，確保看到的是已保存的值
         private Rect _windowRect = new Rect(100, 100, 420, 380);
         private GUIStyle? _labelStyle;
         private bool _stylesInitialized;
@@ -25,6 +26,7 @@ namespace HS2OrbitAndExciter
         private string _orbitTimeStr = "";
         private string _orbitCountRandomStr = "";
         private string _orbitCountPoseStr = "";
+        private string _checkpointTimeoutStr = "";
         private string _excitementDelayStr = "";
         private string _feelAddPerSecStr = "";
 
@@ -62,18 +64,21 @@ namespace HS2OrbitAndExciter
                 && Event.current.keyCode == MenuHotkey && Event.current.control && Event.current.shift)
             {
                 _visible = !_visible;
+                if (_visible) _needSyncFromConfig = true;
                 Event.current.Use();
             }
             if (!_visible) return;
 
-            // Sync text fields from config when window just became visible (avoids empty on first open)
-            if (Event.current != null && Event.current.type == EventType.Layout && _orbitTimeStr == "" && HS2OrbitAndExciter.OrbitTimePer360 != null)
+            // 每次打開視窗時從 config 同步到輸入框，顯示的是已保存的設定值
+            if (Event.current != null && Event.current.type == EventType.Layout && _needSyncFromConfig && HS2OrbitAndExciter.OrbitTimePer360 != null)
             {
                 _orbitTimeStr = HS2OrbitAndExciter.OrbitTimePer360.Value.ToString("F1");
                 _orbitCountRandomStr = (HS2OrbitAndExciter.OrbitCountBeforeRandom?.Value ?? 0).ToString();
                 _orbitCountPoseStr = (HS2OrbitAndExciter.OrbitCountBeforePoseChange?.Value ?? 2).ToString();
+                _checkpointTimeoutStr = (HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds?.Value ?? 5f).ToString("F1");
                 _excitementDelayStr = (HS2OrbitAndExciter.ExcitementTriggerDelaySeconds?.Value ?? 0f).ToString("F1");
                 _feelAddPerSecStr = (HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit?.Value ?? 0.1f).ToString("F2");
+                _needSyncFromConfig = false;
             }
 
             // #region agent log
@@ -89,13 +94,13 @@ namespace HS2OrbitAndExciter
         {
             GUILayout.BeginVertical(GUILayout.ExpandWidth(true));
 
-            GUILayout.Label("環視 (Orbit)", GUI.skin.box);
+            GUILayout.Label("環視 POV (Orbit)", GUI.skin.box);
             if (HS2OrbitAndExciter.OrbitTimePer360 != null)
             {
                 if (GUI.GetNameOfFocusedControl() != "OrbitTimePer360")
                     _orbitTimeStr = HS2OrbitAndExciter.OrbitTimePer360.Value.ToString("F1");
                 GUILayout.BeginHorizontal();
-                GUILayout.Label("360° 一圈秒數 (OrbitTimePer360):", _labelStyle, GUILayout.Width(220));
+                GUILayout.Label("環視 POV 一圈 360° 時間 (秒):", _labelStyle, GUILayout.Width(220));
                 GUI.SetNextControlName("OrbitTimePer360");
                 _orbitTimeStr = GUILayout.TextField(_orbitTimeStr, GUILayout.Width(60));
                 if (float.TryParse(_orbitTimeStr, out float v) && v > 0.1f && v <= 120f)
@@ -130,9 +135,38 @@ namespace HS2OrbitAndExciter
                 HS2OrbitAndExciter.ChangePoseOnCycle.Value = GUILayout.Toggle(HS2OrbitAndExciter.ChangePoseOnCycle.Value, " 每 n 次 360 後換姿勢 (ChangePoseOnCycle)");
             if (HS2OrbitAndExciter.ClothesChangeEnabled != null)
                 HS2OrbitAndExciter.ClothesChangeEnabled.Value = GUILayout.Toggle(HS2OrbitAndExciter.ClothesChangeEnabled.Value, " 每完成 1 次 360 切換衣物階段 (ClothesChangeEnabled)");
+            if (HS2OrbitAndExciter.OrbitAutoActionEnabled != null)
+                HS2OrbitAndExciter.OrbitAutoActionEnabled.Value = GUILayout.Toggle(HS2OrbitAndExciter.OrbitAutoActionEnabled.Value, " 環視時自動進動作／少操作 (OrbitAutoActionEnabled)");
+            if (HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds != null)
+            {
+                if (GUI.GetNameOfFocusedControl() != "OrbitCheckpointTimeout")
+                    _checkpointTimeoutStr = HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds.Value.ToString("F1");
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("環視時卡點超過幾秒自動下一階段 (0=不強制):", _labelStyle, GUILayout.Width(260));
+                GUI.SetNextControlName("OrbitCheckpointTimeout");
+                _checkpointTimeoutStr = GUILayout.TextField(_checkpointTimeoutStr, GUILayout.Width(60));
+                if (float.TryParse(_checkpointTimeoutStr, out float v) && v >= 0f && v <= 60f)
+                    HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds.Value = v;
+                GUILayout.EndHorizontal();
+            }
 
             GUILayout.Space(8);
-            GUILayout.Label("興奮劑 (Exciter)", GUI.skin.box);
+            GUILayout.Label("興奮條 (Exciter)", GUI.skin.box);
+            if (HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit != null)
+            {
+                if (GUI.GetNameOfFocusedControl() != "FeelAddPerSec")
+                    _feelAddPerSecStr = HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit.Value.ToString("F2");
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("興奮條上升速度（0=僅滑鼠，0.01=100秒滿，0.1=10秒滿）:", _labelStyle, GUILayout.Width(320));
+                GUI.SetNextControlName("FeelAddPerSec");
+                _feelAddPerSecStr = GUILayout.TextField(_feelAddPerSecStr, GUILayout.Width(60));
+                if (float.TryParse(_feelAddPerSecStr, out float v) && v >= 0f && v <= 5f)
+                {
+                    if (v > 0f && v < 0.01f) v = 0.01f; // 最慢 = 100 秒滿
+                    HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit.Value = v;
+                }
+                GUILayout.EndHorizontal();
+            }
             if (HS2OrbitAndExciter.ExcitementTriggerDelaySeconds != null)
             {
                 if (GUI.GetNameOfFocusedControl() != "ExcitementTriggerDelay")
@@ -148,20 +182,9 @@ namespace HS2OrbitAndExciter
                 }
                 GUILayout.EndHorizontal();
             }
-            if (HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit != null)
-            {
-                if (GUI.GetNameOfFocusedControl() != "FeelAddPerSec")
-                    _feelAddPerSecStr = HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit.Value.ToString("F2");
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("環視時興奮條每秒增加 (0=僅滑鼠):", _labelStyle, GUILayout.Width(220));
-                GUI.SetNextControlName("FeelAddPerSec");
-                _feelAddPerSecStr = GUILayout.TextField(_feelAddPerSecStr, GUILayout.Width(60));
-                if (float.TryParse(_feelAddPerSecStr, out float v) && v >= 0f && v <= 2f)
-                    HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit.Value = v;
-                GUILayout.EndHorizontal();
-            }
 
             GUILayout.Space(8);
+            GUILayout.Label("設定值會自動儲存，保持至下次變更。", _labelStyle);
             GUILayout.Label("熱鍵：Ctrl+Shift+O 環視開關，Ctrl+Shift+P 本視窗", _labelStyle);
             if (GUILayout.Button("關閉"))
                 _visible = false;

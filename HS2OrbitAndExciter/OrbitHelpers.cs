@@ -57,6 +57,18 @@ namespace HS2OrbitAndExciter
             return transBase.InverseTransformPoint(worldPos.Value);
         }
 
+        /// <summary>Approximate world-size of focus region for framing (head/chest/pelvis). Used so focus fills ~75% of screen when setting distance.</summary>
+        public static float GetFocusRegionSize(int focusIndex)
+        {
+            switch (focusIndex)
+            {
+                case 0: case 3: return 0.28f;  // Head
+                case 1: case 4: return 0.42f;  // Chest
+                case 2: case 5: return 0.32f;  // Pelvis
+                default: return 0.35f;
+            }
+        }
+
         /// <summary>Max focus count: 6 if two females, else 3.</summary>
         public static int GetMaxFocusIndex(ChaControl[]? chaFemales)
         {

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using HarmonyLib;
 using Manager;
 using UnityEngine;
 
@@ -46,6 +47,9 @@ namespace HS2OrbitAndExciter
         private int _currentClothesSequenceIndex;
 
         private static FieldInfo _feelFField;
+        /// <summary>Seconds spent at checkpoint (Idle, no selection) while orbit is on; reset when we advance or leave checkpoint.</summary>
+        private float _checkpointIdleTime;
+        private static MethodInfo? _getAutoAnimationMethod;
 
         private static float GetOrbitFeelAddPerSecond()
         {
@@ -69,6 +73,57 @@ namespace HS2OrbitAndExciter
             float next = Mathf.Clamp01(current + addPerSec * Time.deltaTime);
             if (next <= current) return;
             _feelFField.SetValue(ctrlFlag, next);
+        }
+
+        /// <summary>When orbit is on and OrbitAutoActionEnabled: set isAutoActionChange and initiative so game auto-picks next action.</summary>
+        private void ApplyOrbitAutoAction(HScene hScene)
+        {
+            if (HS2OrbitAndExciter.OrbitAutoActionEnabled?.Value != true) return;
+            var ctrlFlag = hScene.ctrlFlag;
+            if (ctrlFlag == null) return;
+            var t = Traverse.Create(ctrlFlag);
+            t.Property("isAutoActionChange").SetValue(true);
+            t.Field("initiative").SetValue(1);
+        }
+
+        /// <summary>When orbit is on and stuck at checkpoint (Idle, no selection) for OrbitCheckpointTimeoutSeconds, call HScene.GetAutoAnimation to advance.</summary>
+        private void TryAutoAdvancePastCheckpoint(HScene hScene)
+        {
+            float timeout = HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds?.Value ?? 5f;
+            if (timeout <= 0f) return;
+            var ctrlFlag = hScene.ctrlFlag;
+            if (ctrlFlag == null) return;
+            if (Traverse.Create(ctrlFlag).Property("selectAnimationListInfo").GetValue() != null) { _checkpointIdleTime = 0f; return; }
+            var chaFemales = OrbitHelpers.GetChaFemales(hScene);
+            if (chaFemales == null || chaFemales.Length == 0) return;
+            var cha = chaFemales[0];
+            if (cha == null) return;
+            var animBody = Traverse.Create(cha).Field("animBody").GetValue();
+            if (animBody == null) return;
+            var animType = animBody.GetType();
+            var getState = animType.GetMethod("GetCurrentAnimatorStateInfo", new[] { typeof(int) });
+            if (getState == null) return;
+            var state = getState.Invoke(animBody, new object[] { 0 });
+            if (state == null) return;
+            var isName = state.GetType().GetMethod("IsName", new[] { typeof(string) });
+            if (isName == null) return;
+            bool isIdle = (bool)isName.Invoke(state, new object[] { "Idle" }) || (bool)isName.Invoke(state, new object[] { "D_Idle" });
+            if (!isIdle) { _checkpointIdleTime = 0f; return; }
+            _checkpointIdleTime += Time.deltaTime;
+            if (_checkpointIdleTime < timeout) return;
+            _checkpointIdleTime = 0f;
+            if (_getAutoAnimationMethod == null)
+            {
+                _getAutoAnimationMethod = typeof(HScene).GetMethod("GetAutoAnimation", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (_getAutoAnimationMethod == null) return;
+            }
+            try
+            {
+                _getAutoAnimationMethod.Invoke(hScene, new object[] { false });
+                if (Traverse.Create(ctrlFlag).Property("selectAnimationListInfo").GetValue() == null)
+                    _getAutoAnimationMethod.Invoke(hScene, new object[] { true });
+            }
+            catch { /* ignore */ }
         }
 
         private void Update()
@@ -118,6 +173,12 @@ namespace HS2OrbitAndExciter
             // Excitement gauge auto-accumulates while orbit is active (no mouse required)
             AccumulateFeelWhenOrbit(hScene);
 
+            // When orbit is on: enable game auto action so user rarely needs to operate (auto-enter action loop / auto-pick next)
+            ApplyOrbitAutoAction(hScene);
+
+            // When stuck at checkpoint (Idle, no selection) for N seconds, force advance to next phase
+            TryAutoAdvancePastCheckpoint(hScene);
+
             // Re-apply camera takeover every frame (e.g. after ChangeAnimation sets camera flag)
             ctrl.NoCtrlCondition = NoCtrlOrbit;
 
@@ -154,6 +215,21 @@ namespace HS2OrbitAndExciter
             ctrl.Rot = rot;
         }
 
+        /// <summary>Set camera distance so the current focus region fills about 75% of screen height. Call after setting TargetPos.</summary>
+        private static void SetDistanceForFocusFraction(CameraControl_Ver2 ctrl, int focusIndex, float screenFraction = 0.75f)
+        {
+            float h = OrbitHelpers.GetFocusRegionSize(focusIndex);
+            float fovDeg = ctrl.CameraFov;
+            if (fovDeg <= 0f) fovDeg = 40f;
+            float fovHalfRad = (fovDeg * 0.5f) * Mathf.Deg2Rad;
+            float tanHalf = Mathf.Tan(fovHalfRad);
+            if (tanHalf <= 0f) return;
+            float d = h / (screenFraction * 2f * tanHalf);
+            d = Mathf.Clamp(d, 0.4f, 10f);
+            var dir = ctrl.CameraDir;
+            ctrl.CameraDir = new Vector3(dir.x, dir.y, -d);
+        }
+
         private void OnOrbitCycleComplete(HScene hScene, CameraControl_Ver2 ctrl)
         {
             _orbitCycleCount++;
@@ -168,7 +244,11 @@ namespace HS2OrbitAndExciter
             {
                 _currentFocusIndex = Random.Range(0, maxFocus);
                 var pos = OrbitHelpers.GetFocusPosition(chaFemales, _currentFocusIndex, ctrl.transBase);
-                if (pos.HasValue) ctrl.TargetPos = pos.Value;
+                if (pos.HasValue)
+                {
+                    ctrl.TargetPos = pos.Value;
+                    SetDistanceForFocusFraction(ctrl, _currentFocusIndex);
+                }
                 _startOrbitY = AnglePresets[Random.Range(0, AnglePresets.Length)];
             }
 
@@ -221,7 +301,11 @@ namespace HS2OrbitAndExciter
                 if (chaFemales != null && chaFemales.Length > 0)
                 {
                     var pos = OrbitHelpers.GetFocusPosition(chaFemales, 0, ctrl.transBase);
-                    if (pos.HasValue) ctrl.TargetPos = pos.Value;
+                    if (pos.HasValue)
+                    {
+                        ctrl.TargetPos = pos.Value;
+                        SetDistanceForFocusFraction(ctrl, 0);
+                    }
                 }
             }
             else
