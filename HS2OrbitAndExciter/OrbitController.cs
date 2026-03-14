@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using AIChara;
 using HarmonyLib;
 using Manager;
 using UnityEngine;
@@ -215,17 +216,18 @@ namespace HS2OrbitAndExciter
             ctrl.Rot = rot;
         }
 
-        /// <summary>Set camera distance so the current focus region fills about 75% of screen height. Call after setting TargetPos.</summary>
-        private static void SetDistanceForFocusFraction(CameraControl_Ver2 ctrl, int focusIndex, float screenFraction = 0.75f)
+        /// <summary>Set camera distance = body height × config multiplier for this focus. Call after setting TargetPos.</summary>
+        private static void SetDistanceForFocus(CameraControl_Ver2 ctrl, ChaControl[]? chaFemales, int focusIndex)
         {
-            float h = OrbitHelpers.GetFocusRegionSize(focusIndex);
-            float fovDeg = ctrl.CameraFov;
-            if (fovDeg <= 0f) fovDeg = 40f;
-            float fovHalfRad = (fovDeg * 0.5f) * Mathf.Deg2Rad;
-            float tanHalf = Mathf.Tan(fovHalfRad);
-            if (tanHalf <= 0f) return;
-            float d = h / (screenFraction * 2f * tanHalf);
-            d = Mathf.Clamp(d, 0.4f, 10f);
+            if (chaFemales == null || chaFemales.Length == 0) return;
+            int femaleIdx = focusIndex < 3 ? 0 : 1;
+            float bodyHeight = OrbitHelpers.GetBodyHeight(chaFemales, femaleIdx);
+            float mult = 1f;
+            if (focusIndex == 0 || focusIndex == 3) mult = HS2OrbitAndExciter.OrbitDistanceHead?.Value ?? 0.3f;
+            else if (focusIndex == 1 || focusIndex == 4) mult = HS2OrbitAndExciter.OrbitDistanceChest?.Value ?? 0.3f;
+            else mult = HS2OrbitAndExciter.OrbitDistancePelvis?.Value ?? 0.3f;
+            float d = bodyHeight * mult;
+            d = Mathf.Clamp(d, 0.1f * bodyHeight, 3f * bodyHeight);
             var dir = ctrl.CameraDir;
             ctrl.CameraDir = new Vector3(dir.x, dir.y, -d);
         }
@@ -247,7 +249,7 @@ namespace HS2OrbitAndExciter
                 if (pos.HasValue)
                 {
                     ctrl.TargetPos = pos.Value;
-                    SetDistanceForFocusFraction(ctrl, _currentFocusIndex);
+                    SetDistanceForFocus(ctrl, chaFemales, _currentFocusIndex);
                 }
                 _startOrbitY = AnglePresets[Random.Range(0, AnglePresets.Length)];
             }
@@ -304,7 +306,7 @@ namespace HS2OrbitAndExciter
                     if (pos.HasValue)
                     {
                         ctrl.TargetPos = pos.Value;
-                        SetDistanceForFocusFraction(ctrl, 0);
+                        SetDistanceForFocus(ctrl, chaFemales, 0);
                     }
                 }
             }

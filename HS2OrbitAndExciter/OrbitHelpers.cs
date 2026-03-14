@@ -16,6 +16,8 @@ namespace HS2OrbitAndExciter
         public const string BoneHead = "cf_J_Head";
         public const string BoneChest = "cf_J_Mune00";
         public const string BonePelvis = "cf_J_Kokan";
+        /// <summary>Left foot bone for measuring full body height (head to foot).</summary>
+        private const string BoneFootL = "cf_J_Foot_L";
 
         public static ChaControl[]? GetChaFemales(HScene hScene)
         {
@@ -57,16 +59,18 @@ namespace HS2OrbitAndExciter
             return transBase.InverseTransformPoint(worldPos.Value);
         }
 
-        /// <summary>Approximate world-size of focus region for framing (head/chest/pelvis). Used so focus fills ~75% of screen when setting distance.</summary>
-        public static float GetFocusRegionSize(int focusIndex)
+        /// <summary>Full body height in world units (head to foot). Uses first female; fallback 1.6f if bones missing.</summary>
+        public static float GetBodyHeight(ChaControl[]? chaFemales, int femaleIndex = 0)
         {
-            switch (focusIndex)
-            {
-                case 0: case 3: return 0.28f;  // Head
-                case 1: case 4: return 0.42f;  // Chest
-                case 2: case 5: return 0.32f;  // Pelvis
-                default: return 0.35f;
-            }
+            if (chaFemales == null || femaleIndex < 0 || femaleIndex >= chaFemales.Length) return 1.6f;
+            var head = GetBonePosition(chaFemales, femaleIndex, BoneHead);
+            var foot = GetBonePosition(chaFemales, femaleIndex, BoneFootL);
+            if (head.HasValue && foot.HasValue)
+                return Mathf.Max(0.5f, head.Value.y - foot.Value.y);
+            var pelvis = GetBonePosition(chaFemales, femaleIndex, BonePelvis);
+            if (head.HasValue && pelvis.HasValue)
+                return Mathf.Max(0.5f, (head.Value.y - pelvis.Value.y) * 2.2f);
+            return 1.6f;
         }
 
         /// <summary>Max focus count: 6 if two females, else 3.</summary>

@@ -23,6 +23,12 @@ namespace HS2OrbitAndExciter
         internal static ConfigEntry<bool>? OrbitAutoActionEnabled;
         /// <summary>When orbit is on and stuck at checkpoint (Idle, no selection): auto-advance after this many seconds (0 = use game auto only).</summary>
         internal static ConfigEntry<float>? OrbitCheckpointTimeoutSeconds;
+        /// <summary>Orbit camera distance = body height × this (head focus).</summary>
+        internal static ConfigEntry<float>? OrbitDistanceHead;
+        /// <summary>Orbit camera distance = body height × this (chest focus).</summary>
+        internal static ConfigEntry<float>? OrbitDistanceChest;
+        /// <summary>Orbit camera distance = body height × this (pelvis focus).</summary>
+        internal static ConfigEntry<float>? OrbitDistancePelvis;
 
         private static void PatchSafe(Harmony harmony, System.Type patchType)
         {
@@ -65,6 +71,12 @@ namespace HS2OrbitAndExciter
                     "When orbit is on: enable game auto action so next pose/action is chosen automatically (user rarely needs to operate).");
                 OrbitCheckpointTimeoutSeconds = Config.Bind("Orbit", "OrbitCheckpointTimeoutSeconds", 5f,
                     "When orbit is on and stuck at checkpoint (Idle, no selection): auto-advance after this many seconds. 0 = only use game auto, no forced advance.");
+                OrbitDistanceHead = Config.Bind("Orbit", "OrbitDistanceHead", 0.3f,
+                    "Camera distance for head focus, in body-height units (0.1–3, avoid clipping).");
+                OrbitDistanceChest = Config.Bind("Orbit", "OrbitDistanceChest", 0.3f,
+                    "Camera distance for chest focus, in body-height units (0.1–3, avoid clipping).");
+                OrbitDistancePelvis = Config.Bind("Orbit", "OrbitDistancePelvis", 0.3f,
+                    "Camera distance for pelvis focus, in body-height units (0.1–3, avoid clipping).");
 
                 Patches.ExciterState.DelaySecondsAtFull = ExcitementTriggerDelaySeconds.Value;
                 ExcitementTriggerDelaySeconds.SettingChanged += (_, __) => Patches.ExciterState.DelaySecondsAtFull = ExcitementTriggerDelaySeconds.Value;
