@@ -37,6 +37,13 @@ namespace HS2OrbitAndExciter
             var line = $"{{\"sessionId\":\"9961ad\",\"location\":\"{location}\",\"message\":\"{message}\",\"data\":{dataJson},\"hypothesisId\":\"{hypothesisId}\",\"timestamp\":{ts}}}\n";
             try { File.AppendAllText(logPath, line); } catch { }
         }
+        private static void DebugSessionLog(string location, string message, string dataJson, string hypothesisId)
+        {
+            var logPath = Path.Combine(@"d:\HS4", "debug-b1efc0.log");
+            var ts = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var line = $"{{\"sessionId\":\"b1efc0\",\"runId\":\"run1\",\"hypothesisId\":\"{hypothesisId}\",\"location\":\"{location}\",\"message\":\"{message}\",\"data\":{dataJson},\"timestamp\":{ts}}}\n";
+            try { File.AppendAllText(logPath, line); } catch { }
+        }
         // #endregion
 
         private float _startOrbitY;
@@ -51,6 +58,10 @@ namespace HS2OrbitAndExciter
         /// <summary>Seconds spent at checkpoint (Idle, no selection) while orbit is on; reset when we advance or leave checkpoint.</summary>
         private float _checkpointIdleTime;
         private static MethodInfo? _getAutoAnimationMethod;
+        /// <summary>When orbit started in preparation (Idle + speed 0): wait this many seconds then set speed=1 to start; excitement only accumulates after start.</summary>
+        private bool _waitingForPrepStart;
+        private float _prepCountdownStart;
+        private const float PrepWaitSeconds = 3f;
 
         private static float GetOrbitFeelAddPerSecond()
         {
@@ -58,9 +69,33 @@ namespace HS2OrbitAndExciter
             return v <= 0f ? 0f : v;
         }
 
-        /// <summary>When orbit is active, add to excitement gauge each frame so it fills without mouse.</summary>
+        /// <summary>True when in preparation state: Idle/D_Idle and speed &lt;= 0.</summary>
+        private static bool IsInPreparationState(HScene hScene)
+        {
+            var ctrlFlag = hScene?.ctrlFlag;
+            if (ctrlFlag == null) return false;
+            float speed = (float)(Traverse.Create(ctrlFlag).Field("speed").GetValue() ?? 0f);
+            if (speed > 0.01f) return false;
+            var chaFemales = OrbitHelpers.GetChaFemales(hScene);
+            if (chaFemales == null || chaFemales.Length == 0) return false;
+            var cha = chaFemales[0];
+            if (cha == null) return false;
+            var animBody = Traverse.Create(cha).Field("animBody").GetValue();
+            if (animBody == null) return false;
+            var animType = animBody.GetType();
+            var getState = animType.GetMethod("GetCurrentAnimatorStateInfo", new[] { typeof(int) });
+            if (getState == null) return false;
+            var state = getState.Invoke(animBody, new object[] { 0 });
+            if (state == null) return false;
+            var isName = state.GetType().GetMethod("IsName", new[] { typeof(string) });
+            if (isName == null) return false;
+            return (bool)isName.Invoke(state, new object[] { "Idle" }) || (bool)isName.Invoke(state, new object[] { "D_Idle" });
+        }
+
+        /// <summary>When orbit is active, add to excitement gauge each frame so it fills without mouse. Skipped during prep countdown.</summary>
         private void AccumulateFeelWhenOrbit(HScene hScene)
         {
+            if (_waitingForPrepStart) return;
             float addPerSec = GetOrbitFeelAddPerSecond();
             if (addPerSec <= 0f) return;
             var ctrlFlag = hScene.ctrlFlag;
@@ -137,10 +172,13 @@ namespace HS2OrbitAndExciter
             bool oKey = Input.GetKey(OrbitHotkey);
             float cooldownLeft = HotkeyCooldownSeconds - (Time.unscaledTime - _lastHotkeyTime);
             // #region agent log
-            if (_orbitActive && (mod2 || mod2R) && (mod || modR) && (oKey || oDown))
+            if (oDown && (mod2 || mod2R || mod || modR))
             {
                 bool leftCombo = mod2 && mod && oDown;
-                DebugLog("OrbitController.cs:Update", "Orbit active, modifiers+O", "{\"oDown\":" + (oDown ? "true" : "false") + ",\"oKey\":" + (oKey ? "true" : "false") + ",\"cooldownLeft\":" + cooldownLeft.ToString("F2") + ",\"leftCtrl\":" + (mod2 ? "true" : "false") + ",\"leftShift\":" + (mod ? "true" : "false") + ",\"rightCtrl\":" + (mod2R ? "true" : "false") + ",\"rightShift\":" + (modR ? "true" : "false") + ",\"leftComboWouldFire\":" + (leftCombo ? "true" : "false") + "}", "H1");
+                bool rightUsed = mod2R || modR;
+                DebugSessionLog("OrbitController.cs:Update", "O+modifiers",
+                    "{\"oDown\":true,\"leftCtrl\":" + (mod2 ? "true" : "false") + ",\"leftShift\":" + (mod ? "true" : "false") + ",\"rightCtrl\":" + (mod2R ? "true" : "false") + ",\"rightShift\":" + (modR ? "true" : "false") + ",\"leftComboSatisfied\":" + (leftCombo ? "true" : "false") + ",\"rightUsed\":" + (rightUsed ? "true" : "false") + "}",
+                    leftCombo ? "H4" : "H1");
             }
             // #endregion
             if (mod2 && mod && oDown)
@@ -148,14 +186,14 @@ namespace HS2OrbitAndExciter
                 if (Time.unscaledTime - _lastHotkeyTime < HotkeyCooldownSeconds)
                 {
                     // #region agent log
-                    DebugLog("OrbitController.cs:Update", "Cooldown skip", "{\"cooldownLeft\":" + cooldownLeft.ToString("F2") + ",\"_orbitActive\":" + (_orbitActive ? "true" : "false") + "}", "H2");
+                    DebugSessionLog("OrbitController.cs:Update", "Cooldown skip", "{\"cooldownLeft\":" + cooldownLeft.ToString("F2") + ",\"_orbitActive\":" + (_orbitActive ? "true" : "false") + "}", "H2");
                     // #endregion
                     return;
                 }
                 _lastHotkeyTime = Time.unscaledTime;
                 _orbitActive = !_orbitActive;
                 // #region agent log
-                DebugLog("OrbitController.cs:Update", "Toggle", "{\"_orbitActive\":" + (_orbitActive ? "true" : "false") + "}", "H4");
+                DebugSessionLog("OrbitController.cs:Update", "Toggle orbit", "{\"_orbitActive\":" + (_orbitActive ? "true" : "false") + "}", "H4");
                 // #endregion
                 OnOrbitToggled(_orbitActive);
             }
@@ -171,7 +209,20 @@ namespace HS2OrbitAndExciter
             var ctrl = hScene.ctrlFlag?.cameraCtrl as CameraControl_Ver2;
             if (ctrl == null) return;
 
-            // Excitement gauge auto-accumulates while orbit is active (no mouse required)
+            // If we started in preparation (Idle + speed 0): after 3 s set speed=1 to start motion; excitement only rises after that
+            if (_waitingForPrepStart)
+            {
+                float elapsed = Time.unscaledTime - _prepCountdownStart;
+                if (elapsed >= PrepWaitSeconds)
+                {
+                    _waitingForPrepStart = false;
+                    var ctrlFlag = hScene.ctrlFlag;
+                    if (ctrlFlag != null)
+                        Traverse.Create(ctrlFlag).Field("speed").SetValue(1f);
+                }
+            }
+
+            // Excitement gauge auto-accumulates while orbit is active (skipped during prep countdown)
             AccumulateFeelWhenOrbit(hScene);
 
             // When orbit is on: enable game auto action so user rarely needs to operate (auto-enter action loop / auto-pick next)
@@ -277,7 +328,10 @@ namespace HS2OrbitAndExciter
 
         private void OnOrbitToggled(bool active)
         {
+            // #region agent log
             var hScene = GetHScene();
+            DebugSessionLog("OrbitController.cs:OnOrbitToggled", "entry", "{\"active\":" + (active ? "true" : "false") + ",\"hSceneNotNull\":" + (hScene != null ? "true" : "false") + "}", "H5");
+            // #endregion
             if (hScene == null)
             {
                 HS2OrbitAndExciter.Log?.LogInfo("Orbit: No H scene; orbit will start when entering H.");
@@ -285,6 +339,9 @@ namespace HS2OrbitAndExciter
             }
 
             var ctrl = hScene.ctrlFlag?.cameraCtrl;
+            // #region agent log
+            DebugSessionLog("OrbitController.cs:OnOrbitToggled", "ctrl check", "{\"ctrlNotNull\":" + (ctrl != null ? "true" : "false") + "}", "H5");
+            // #endregion
             if (ctrl == null) return;
 
             if (active)
@@ -309,9 +366,17 @@ namespace HS2OrbitAndExciter
                         SetDistanceForFocus(ctrl, chaFemales, 0);
                     }
                 }
+                if (IsInPreparationState(hScene))
+                {
+                    _waitingForPrepStart = true;
+                    _prepCountdownStart = Time.unscaledTime;
+                }
+                else
+                    _waitingForPrepStart = false;
             }
             else
             {
+                _waitingForPrepStart = false;
                 // #region agent log
                 DebugLog("OrbitController.cs:OnOrbitToggled", "Stopping orbit, restoring NoCtrlCondition", "{\"hasSaved\":" + (_savedNoCtrlCondition != null ? "true" : "false") + "}", "H5");
                 // #endregion
