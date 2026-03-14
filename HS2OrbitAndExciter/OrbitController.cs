@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using Manager;
 using UnityEngine;
 
@@ -25,6 +27,16 @@ namespace HS2OrbitAndExciter
         private BaseCameraControl_Ver2.NoCtrlFunc? _savedNoCtrlCondition;
         private float _lastHotkeyTime = -999f;
 
+        // #region agent log
+        private static void DebugLog(string location, string message, string dataJson, string hypothesisId)
+        {
+            var logPath = Path.Combine(@"d:\HS4", "debug-9961ad.log");
+            var ts = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var line = $"{{\"sessionId\":\"9961ad\",\"location\":\"{location}\",\"message\":\"{message}\",\"data\":{dataJson},\"hypothesisId\":\"{hypothesisId}\",\"timestamp\":{ts}}}\n";
+            try { File.AppendAllText(logPath, line); } catch { }
+        }
+        // #endregion
+
         private float _startOrbitY;
         private int _orbitPhase;
         private float _orbitAccumulatedDegrees;
@@ -33,14 +45,62 @@ namespace HS2OrbitAndExciter
         /// <summary>Index into sequence [0,1,2,3,2,1]; next step is (_currentClothesSequenceIndex + 1) % 6.</summary>
         private int _currentClothesSequenceIndex;
 
+        private static FieldInfo _feelFField;
+
+        private static float GetOrbitFeelAddPerSecond()
+        {
+            var v = HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit?.Value ?? 0.1f;
+            return v <= 0f ? 0f : v;
+        }
+
+        /// <summary>When orbit is active, add to excitement gauge each frame so it fills without mouse.</summary>
+        private void AccumulateFeelWhenOrbit(HScene hScene)
+        {
+            float addPerSec = GetOrbitFeelAddPerSecond();
+            if (addPerSec <= 0f) return;
+            var ctrlFlag = hScene.ctrlFlag;
+            if (ctrlFlag == null) return;
+            if (_feelFField == null)
+            {
+                _feelFField = ctrlFlag.GetType().GetField("feel_f", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (_feelFField == null) return;
+            }
+            float current = (float)(_feelFField.GetValue(ctrlFlag) ?? 0f);
+            float next = Mathf.Clamp01(current + addPerSec * Time.deltaTime);
+            if (next <= current) return;
+            _feelFField.SetValue(ctrlFlag, next);
+        }
+
         private void Update()
         {
-            if (Input.GetKey(Modifier2) && Input.GetKey(Modifier) && Input.GetKeyDown(OrbitHotkey))
+            bool mod2 = Input.GetKey(Modifier2);
+            bool mod = Input.GetKey(Modifier);
+            bool mod2R = Input.GetKey(KeyCode.RightControl);
+            bool modR = Input.GetKey(KeyCode.RightShift);
+            bool oDown = Input.GetKeyDown(OrbitHotkey);
+            bool oKey = Input.GetKey(OrbitHotkey);
+            float cooldownLeft = HotkeyCooldownSeconds - (Time.unscaledTime - _lastHotkeyTime);
+            // #region agent log
+            if (_orbitActive && (mod2 || mod2R) && (mod || modR) && (oKey || oDown))
+            {
+                bool leftCombo = mod2 && mod && oDown;
+                DebugLog("OrbitController.cs:Update", "Orbit active, modifiers+O", "{\"oDown\":" + (oDown ? "true" : "false") + ",\"oKey\":" + (oKey ? "true" : "false") + ",\"cooldownLeft\":" + cooldownLeft.ToString("F2") + ",\"leftCtrl\":" + (mod2 ? "true" : "false") + ",\"leftShift\":" + (mod ? "true" : "false") + ",\"rightCtrl\":" + (mod2R ? "true" : "false") + ",\"rightShift\":" + (modR ? "true" : "false") + ",\"leftComboWouldFire\":" + (leftCombo ? "true" : "false") + "}", "H1");
+            }
+            // #endregion
+            if (mod2 && mod && oDown)
             {
                 if (Time.unscaledTime - _lastHotkeyTime < HotkeyCooldownSeconds)
+                {
+                    // #region agent log
+                    DebugLog("OrbitController.cs:Update", "Cooldown skip", "{\"cooldownLeft\":" + cooldownLeft.ToString("F2") + ",\"_orbitActive\":" + (_orbitActive ? "true" : "false") + "}", "H2");
+                    // #endregion
                     return;
+                }
                 _lastHotkeyTime = Time.unscaledTime;
                 _orbitActive = !_orbitActive;
+                // #region agent log
+                DebugLog("OrbitController.cs:Update", "Toggle", "{\"_orbitActive\":" + (_orbitActive ? "true" : "false") + "}", "H4");
+                // #endregion
                 OnOrbitToggled(_orbitActive);
             }
         }
@@ -54,6 +114,9 @@ namespace HS2OrbitAndExciter
 
             var ctrl = hScene.ctrlFlag?.cameraCtrl as CameraControl_Ver2;
             if (ctrl == null) return;
+
+            // Excitement gauge auto-accumulates while orbit is active (no mouse required)
+            AccumulateFeelWhenOrbit(hScene);
 
             // Re-apply camera takeover every frame (e.g. after ChangeAnimation sets camera flag)
             ctrl.NoCtrlCondition = NoCtrlOrbit;
@@ -163,6 +226,9 @@ namespace HS2OrbitAndExciter
             }
             else
             {
+                // #region agent log
+                DebugLog("OrbitController.cs:OnOrbitToggled", "Stopping orbit, restoring NoCtrlCondition", "{\"hasSaved\":" + (_savedNoCtrlCondition != null ? "true" : "false") + "}", "H5");
+                // #endregion
                 if (_savedNoCtrlCondition != null && _savedNoCtrlCondition != NoCtrlOrbit)
                     ctrl.NoCtrlCondition = _savedNoCtrlCondition;
                 else

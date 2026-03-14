@@ -13,6 +13,8 @@ namespace HS2OrbitAndExciter
 
         internal static ConfigEntry<float>? OrbitTimePer360;
         internal static ConfigEntry<float>? ExcitementTriggerDelaySeconds;
+        /// <summary>When orbit is active, add this much to feel_f per second (0 = no auto accumulation).</summary>
+        internal static ConfigEntry<float>? FeelAddPerSecondWhenOrbit;
         internal static ConfigEntry<int>? OrbitCountBeforeRandom;
         internal static ConfigEntry<int>? OrbitCountBeforePoseChange;
         internal static ConfigEntry<bool>? ChangePoseOnCycle;
@@ -53,6 +55,8 @@ namespace HS2OrbitAndExciter
                     "Whether to advance clothes stage (Full→Half→KeepAccessories→FullOff) each full orbit.");
                 ExcitementTriggerDelaySeconds = Config.Bind("Exciter", "ExcitementTriggerDelaySeconds", 0f,
                     "Seconds at full gauge before auto trigger (0 = immediate, range 0–10). Mouse click still triggers immediately.");
+                FeelAddPerSecondWhenOrbit = Config.Bind("Exciter", "FeelAddPerSecondWhenOrbit", 0.1f,
+                    "When orbit (Ctrl+Shift+O) is active, add this much to excitement gauge per second (0 = only game default / mouse). 0.1 = fill in 10 s.");
 
                 Patches.ExciterState.DelaySecondsAtFull = ExcitementTriggerDelaySeconds.Value;
                 ExcitementTriggerDelaySeconds.SettingChanged += (_, __) => Patches.ExciterState.DelaySecondsAtFull = ExcitementTriggerDelaySeconds.Value;
@@ -63,11 +67,8 @@ namespace HS2OrbitAndExciter
                 PatchSafe(harmony, typeof(Patches.ExciterTranspiler_F2M1_OLoopSonyuProc));
                 PatchSafe(harmony, typeof(Patches.ExciterTranspiler_F1M2_OLoopAibuProc));
                 PatchSafe(harmony, typeof(Patches.ExciterTranspiler_F1M2_OLoopSonyuProc));
-                PatchSafe(harmony, typeof(Patches.ExciterTranspiler_Masturbation_OLoopProc));
-                PatchSafe(harmony, typeof(Patches.ExciterTranspiler_Les_OLoopAibuProc));
                 PatchSafe(harmony, typeof(Patches.ExciterTranspiler_Spnking_ActionProc));
-                PatchSafe(harmony, typeof(Patches.ExciterTranspiler_Sonyu_OLoopAibuProc));
-                PatchSafe(harmony, typeof(Patches.ExciterTranspiler_Aibu_OLoopAibuProc));
+                // Masturbation/Les/Sonyu/Aibu 不載入（此遊戲 build 無對應方法，避免警告）
                 var go = new GameObject("HS2OrbitAndExciterController");
                 DontDestroyOnLoad(go);
                 go.AddComponent<OrbitController>();

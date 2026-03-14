@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using AIChara;
 using HarmonyLib;
 using IllusionUtility.GetUtility;
@@ -79,22 +80,33 @@ namespace HS2OrbitAndExciter
             return stage;
         }
 
-        /// <summary>0=Full, 1=Half, 2=KeepAccessories, 3=FullOff. Sampled from first female via reflection (game API may vary).</summary>
+        /// <summary>0=Full, 1=Half, 2=KeepAccessories, 3=FullOff. GetClothesState is on ChaInfo (base), not ChaControl.</summary>
         private static int GetCurrentClothesStage(ChaControl[]? chaFemales)
         {
             if (chaFemales == null || chaFemales.Length == 0) return 0;
             var c = chaFemales[0];
             if (c == null) return 0;
-            var t = Traverse.Create(c);
-            var getState = t.Method("GetClothesState", new[] { typeof(int) });
-            if (getState == null || !getState.MethodExists()) return 0;
-            object r0 = getState.GetValue(0);
-            int s0 = r0 is int i0 ? i0 : 0;
-            if (s0 == 0) return 0;
-            if (s0 == 1) return 1;
-            object r4 = getState.GetValue(4);
-            int s4 = r4 is int i4 ? i4 : 0;
-            return s4 == 0 ? 2 : 3;
+            var getState = GetClothesStateMethod(c.GetType());
+            if (getState == null) return 0;
+            try
+            {
+                int s0 = (int)getState.Invoke(c, new object[] { 0 });
+                if (s0 == 0) return 0;
+                if (s0 == 1) return 1;
+                int s4 = (int)getState.Invoke(c, new object[] { 4 });
+                return s4 == 0 ? 2 : 3;
+            }
+            catch { return 0; }
+        }
+
+        private static MethodInfo? GetClothesStateMethod(System.Type type)
+        {
+            for (var t = type; t != null; t = t.BaseType)
+            {
+                var m = t.GetMethod("GetClothesState", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(int) }, null);
+                if (m != null) return m;
+            }
+            return null;
         }
 
         /// <summary>Clothes stage 0=Full, 1=Half, 2=KeepAccessories, 3=FullOff. Apply to all characters in HScene.</summary>

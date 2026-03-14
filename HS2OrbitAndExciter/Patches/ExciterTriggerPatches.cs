@@ -117,60 +117,10 @@ namespace HS2OrbitAndExciter.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Masturbation), "OLoopProc")]
-    public static class ExciterTranspiler_Masturbation_OLoopProc
-    {
-        private static readonly FieldInfo FeelF = AccessTools.Field(typeof(HSceneFlagCtrl), "feel_f");
-        private static readonly MethodInfo GetFeelF = AccessTools.Method(typeof(ExciterState), nameof(ExciterState.GetFeelFForOrgasmCheck));
-
-        [HarmonyTranspiler]
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-        {
-            return ExciterTranspilerShared.TranspilerShared(instructions, FeelF, GetFeelF);
-        }
-    }
-
-    [HarmonyPatch(typeof(Les), "OLoopAibuProc")]
-    public static class ExciterTranspiler_Les_OLoopAibuProc
-    {
-        private static readonly FieldInfo FeelF = AccessTools.Field(typeof(HSceneFlagCtrl), "feel_f");
-        private static readonly MethodInfo GetFeelF = AccessTools.Method(typeof(ExciterState), nameof(ExciterState.GetFeelFForOrgasmCheck));
-
-        [HarmonyTranspiler]
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-        {
-            return ExciterTranspilerShared.TranspilerShared(instructions, FeelF, GetFeelF);
-        }
-    }
+    // Masturbation/Les/Sonyu/Aibu patches removed: methods not found in this game build, avoid loading them
 
     [HarmonyPatch(typeof(Spnking), "ActionProc")]
     public static class ExciterTranspiler_Spnking_ActionProc
-    {
-        private static readonly FieldInfo FeelF = AccessTools.Field(typeof(HSceneFlagCtrl), "feel_f");
-        private static readonly MethodInfo GetFeelF = AccessTools.Method(typeof(ExciterState), nameof(ExciterState.GetFeelFForOrgasmCheck));
-
-        [HarmonyTranspiler]
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-        {
-            return ExciterTranspilerShared.TranspilerShared(instructions, FeelF, GetFeelF);
-        }
-    }
-
-    [HarmonyPatch(typeof(Sonyu), "OLoopAibuProc")]
-    public static class ExciterTranspiler_Sonyu_OLoopAibuProc
-    {
-        private static readonly FieldInfo FeelF = AccessTools.Field(typeof(HSceneFlagCtrl), "feel_f");
-        private static readonly MethodInfo GetFeelF = AccessTools.Method(typeof(ExciterState), nameof(ExciterState.GetFeelFForOrgasmCheck));
-
-        [HarmonyTranspiler]
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-        {
-            return ExciterTranspilerShared.TranspilerShared(instructions, FeelF, GetFeelF);
-        }
-    }
-
-    [HarmonyPatch(typeof(Aibu), "OLoopAibuProc")]
-    public static class ExciterTranspiler_Aibu_OLoopAibuProc
     {
         private static readonly FieldInfo FeelF = AccessTools.Field(typeof(HSceneFlagCtrl), "feel_f");
         private static readonly MethodInfo GetFeelF = AccessTools.Method(typeof(ExciterState), nameof(ExciterState.GetFeelFForOrgasmCheck));

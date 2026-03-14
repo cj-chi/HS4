@@ -26,6 +26,7 @@ namespace HS2OrbitAndExciter
         private string _orbitCountRandomStr = "";
         private string _orbitCountPoseStr = "";
         private string _excitementDelayStr = "";
+        private string _feelAddPerSecStr = "";
 
         // #region agent log
         private static void DebugLog(string location, string message, object data, string hypothesisId)
@@ -72,6 +73,7 @@ namespace HS2OrbitAndExciter
                 _orbitCountRandomStr = (HS2OrbitAndExciter.OrbitCountBeforeRandom?.Value ?? 0).ToString();
                 _orbitCountPoseStr = (HS2OrbitAndExciter.OrbitCountBeforePoseChange?.Value ?? 2).ToString();
                 _excitementDelayStr = (HS2OrbitAndExciter.ExcitementTriggerDelaySeconds?.Value ?? 0f).ToString("F1");
+                _feelAddPerSecStr = (HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit?.Value ?? 0.1f).ToString("F2");
             }
 
             // #region agent log
@@ -144,6 +146,18 @@ namespace HS2OrbitAndExciter
                     HS2OrbitAndExciter.ExcitementTriggerDelaySeconds.Value = v;
                     Patches.ExciterState.DelaySecondsAtFull = v;
                 }
+                GUILayout.EndHorizontal();
+            }
+            if (HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit != null)
+            {
+                if (GUI.GetNameOfFocusedControl() != "FeelAddPerSec")
+                    _feelAddPerSecStr = HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit.Value.ToString("F2");
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("環視時興奮條每秒增加 (0=僅滑鼠):", _labelStyle, GUILayout.Width(220));
+                GUI.SetNextControlName("FeelAddPerSec");
+                _feelAddPerSecStr = GUILayout.TextField(_feelAddPerSecStr, GUILayout.Width(60));
+                if (float.TryParse(_feelAddPerSecStr, out float v) && v >= 0f && v <= 2f)
+                    HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit.Value = v;
                 GUILayout.EndHorizontal();
             }
 
