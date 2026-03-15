@@ -37,9 +37,6 @@ BepInEx_HS2_PhotoToCard/obj/
 Thumbs.db
 Desktop.ini
 
-# 反編譯輸出（檔案多、體積大）
-dll_decompiled/
-
 # 內含獨立 .git 的子專案（若要一併版控請改為 submodule）
 Face2Parameter/
 HS2CharEdit/
