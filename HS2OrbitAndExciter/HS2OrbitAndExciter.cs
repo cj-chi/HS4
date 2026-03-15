@@ -88,6 +88,13 @@ namespace HS2OrbitAndExciter
                 PatchSafe(harmony, typeof(Patches.ExciterTranspiler_F1M2_OLoopAibuProc));
                 PatchSafe(harmony, typeof(Patches.ExciterTranspiler_F1M2_OLoopSonyuProc));
                 PatchSafe(harmony, typeof(Patches.ExciterTranspiler_Spnking_ActionProc));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_StartProcTrigger));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_StartAibuProc));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_StartHoushiProc));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_FaintnessStartProcTrigger));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_FaintnessStartAibuProc));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_AfterTheInsideWaitingProc));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_Masturbation_StartProcTrriger));
                 // Masturbation/Les/Sonyu/Aibu 不載入（此遊戲 build 無對應方法，避免警告）
                 var go = new GameObject("HS2OrbitAndExciterController");
                 DontDestroyOnLoad(go);

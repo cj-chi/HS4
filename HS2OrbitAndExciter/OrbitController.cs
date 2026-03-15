@@ -26,6 +26,8 @@ namespace HS2OrbitAndExciter
         private const float HotkeyCooldownSeconds = 0.25f;
 
         private bool _orbitActive;
+        /// <summary>Mirror of _orbitActive for Harmony patches (static read).</summary>
+        private static bool _orbitActiveForPatches;
         private BaseCameraControl_Ver2.NoCtrlFunc? _savedNoCtrlCondition;
         private float _lastHotkeyTime = -999f;
 
@@ -69,6 +71,43 @@ namespace HS2OrbitAndExciter
             return v <= 0f ? 0f : v;
         }
 
+        /// <summary>Animator state names where excitement is accumulated (action loop). Aibu/Houshi/Sonyu/Les/MultiPlay: W/S/O; Masturbation: W/M/S/O; Spnking: WIdle/SIdle/WAction/SAction.</summary>
+        private static readonly HashSet<string> ActionLoopStateNames = new HashSet<string>
+        {
+            "WLoop", "SLoop", "OLoop", "D_WLoop", "D_SLoop", "D_OLoop",
+            "MLoop",
+            "WIdle", "SIdle", "WAction", "SAction", "D_Action"
+        };
+
+        private const float OrbitSpeedAddPerSecond = 0.35f;
+
+        /// <summary>True when first female's animator is in an action loop state (only then we add feel_f / speed during orbit).</summary>
+        private static bool IsInActionLoopState(HScene hScene)
+        {
+            var chaFemales = OrbitHelpers.GetChaFemales(hScene);
+            if (chaFemales == null || chaFemales.Length == 0) return false;
+            var cha = chaFemales[0];
+            if (cha == null) return false;
+            var animBody = Traverse.Create(cha).Field("animBody").GetValue();
+            if (animBody == null) return false;
+            var animType = animBody.GetType();
+            var getState = animType.GetMethod("GetCurrentAnimatorStateInfo", new[] { typeof(int) });
+            if (getState == null) return false;
+            var state = getState.Invoke(animBody, new object[] { 0 });
+            if (state == null) return false;
+            var isName = state.GetType().GetMethod("IsName", new[] { typeof(string) });
+            if (isName == null) return false;
+            foreach (string name in ActionLoopStateNames)
+            {
+                if ((bool)isName.Invoke(state, new object[] { name }))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>Whether orbit is currently active (for Harmony patches).</summary>
+        public static bool IsOrbitActive() => _orbitActiveForPatches;
+
         /// <summary>True when in preparation state: Idle/D_Idle and speed &lt;= 0.</summary>
         private static bool IsInPreparationState(HScene hScene)
         {
@@ -92,23 +131,33 @@ namespace HS2OrbitAndExciter
             return (bool)isName.Invoke(state, new object[] { "Idle" }) || (bool)isName.Invoke(state, new object[] { "D_Idle" });
         }
 
-        /// <summary>When orbit is active, add to excitement gauge each frame so it fills without mouse. Skipped during prep countdown.</summary>
+        /// <summary>When orbit is active and in action loop only: add to excitement gauge and to speed so W/S/O segments advance without wheel.</summary>
         private void AccumulateFeelWhenOrbit(HScene hScene)
         {
             if (_waitingForPrepStart) return;
-            float addPerSec = GetOrbitFeelAddPerSecond();
-            if (addPerSec <= 0f) return;
+            if (!IsInActionLoopState(hScene)) return;
             var ctrlFlag = hScene.ctrlFlag;
             if (ctrlFlag == null) return;
-            if (_feelFField == null)
+            float addPerSec = GetOrbitFeelAddPerSecond();
+            if (addPerSec > 0f)
             {
-                _feelFField = ctrlFlag.GetType().GetField("feel_f", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                if (_feelFField == null) return;
+                if (_feelFField == null)
+                {
+                    _feelFField = ctrlFlag.GetType().GetField("feel_f", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (_feelFField == null) return;
+                }
+                float current = (float)(_feelFField.GetValue(ctrlFlag) ?? 0f);
+                float next = Mathf.Clamp01(current + addPerSec * Time.deltaTime);
+                if (next > current)
+                    _feelFField.SetValue(ctrlFlag, next);
             }
-            float current = (float)(_feelFField.GetValue(ctrlFlag) ?? 0f);
-            float next = Mathf.Clamp01(current + addPerSec * Time.deltaTime);
-            if (next <= current) return;
-            _feelFField.SetValue(ctrlFlag, next);
+            var speedField = Traverse.Create(ctrlFlag).Field("speed");
+            if (speedField.FieldExists())
+            {
+                float speed = (float)(speedField.GetValue() ?? 0f);
+                speed = Mathf.Clamp(speed + OrbitSpeedAddPerSecond * Time.deltaTime, 0f, 2f);
+                speedField.SetValue(speed);
+            }
         }
 
         /// <summary>When orbit is on and OrbitAutoActionEnabled: set isAutoActionChange and initiative so game auto-picks next action.</summary>
@@ -192,6 +241,7 @@ namespace HS2OrbitAndExciter
                 }
                 _lastHotkeyTime = Time.unscaledTime;
                 _orbitActive = !_orbitActive;
+                _orbitActiveForPatches = _orbitActive;
                 // #region agent log
                 DebugSessionLog("OrbitController.cs:Update", "Toggle orbit", "{\"_orbitActive\":" + (_orbitActive ? "true" : "false") + "}", "H4");
                 // #endregion
@@ -346,6 +396,7 @@ namespace HS2OrbitAndExciter
 
             if (active)
             {
+                _orbitActiveForPatches = true;
                 // Only save game's delegate; never save our own or we restore it on stop and camera stays locked
                 if (ctrl.NoCtrlCondition != NoCtrlOrbit)
                     _savedNoCtrlCondition = ctrl.NoCtrlCondition;
@@ -376,6 +427,7 @@ namespace HS2OrbitAndExciter
             }
             else
             {
+                _orbitActiveForPatches = false;
                 _waitingForPrepStart = false;
                 // #region agent log
                 DebugLog("OrbitController.cs:OnOrbitToggled", "Stopping orbit, restoring NoCtrlCondition", "{\"hasSaved\":" + (_savedNoCtrlCondition != null ? "true" : "false") + "}", "H5");
