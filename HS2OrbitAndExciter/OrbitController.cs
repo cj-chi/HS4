@@ -20,8 +20,15 @@ namespace HS2OrbitAndExciter
 
         private static readonly float[] AnglePresets = { 0f, 45f, 90f, 135f, 180f };
 
-        /// <summary>Single delegate we set during orbit so we never save/restore our own and get stuck.</summary>
-        private static readonly BaseCameraControl_Ver2.NoCtrlFunc NoCtrlOrbit = () => false;
+        /// <summary>When true, game gives camera to player; when false, orbit keeps control. User can always intervene (mouse drag or Q/W/E).</summary>
+        private static bool IsUserControllingCamera()
+        {
+            if (Input.GetMouseButton(0) || Input.GetMouseButton(1)) return true;
+            if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.E)) return true;
+            return false;
+        }
+
+        private static readonly BaseCameraControl_Ver2.NoCtrlFunc NoCtrlOrbit = () => IsUserControllingCamera();
 
         private const float HotkeyCooldownSeconds = 0.25f;
 
@@ -52,9 +59,12 @@ namespace HS2OrbitAndExciter
         private int _orbitPhase;
         private float _orbitAccumulatedDegrees;
         private int _orbitCycleCount;
-        private int _currentFocusIndex;
+        /// <summary>Current view option: 0..maxFocus-1 = body focus index, maxFocus = pose default camera. Total options = maxFocus + 1.</summary>
+        private int _currentViewOption;
         /// <summary>Index into sequence [0,1,2,3,2,1]; next step is (_currentClothesSequenceIndex + 1) % 6.</summary>
         private int _currentClothesSequenceIndex;
+        /// <summary>Track last nowAnimationInfo for pose-change detection; reapply view when it changes.</summary>
+        private object? _lastNowAnimationInfoRef;
 
         private static FieldInfo _feelFField;
         /// <summary>Seconds spent at checkpoint (Idle, no selection) while orbit is on; reset when we advance or leave checkpoint.</summary>
@@ -284,6 +294,14 @@ namespace HS2OrbitAndExciter
             // Re-apply camera takeover every frame (e.g. after ChangeAnimation sets camera flag)
             ctrl.NoCtrlCondition = NoCtrlOrbit;
 
+            // When pose changes (plugin or game), reapply current view so character stays in frame
+            var nowInfo = hScene.ctrlFlag?.nowAnimationInfo;
+            if (nowInfo != null && !ReferenceEquals(nowInfo, _lastNowAnimationInfoRef))
+            {
+                _lastNowAnimationInfoRef = nowInfo;
+                ApplyCurrentViewOption(hScene, ctrl);
+            }
+
             float orbitTime = HS2OrbitAndExciter.OrbitTimePer360?.Value ?? 10f;
             if (orbitTime <= 0f) orbitTime = 10f;
             float speedDegPerSec = 360f / orbitTime;
@@ -333,6 +351,34 @@ namespace HS2OrbitAndExciter
             ctrl.CameraDir = new Vector3(dir.x, dir.y, -d);
         }
 
+        /// <summary>Apply current view option: body focus (GetFocusPosition + SetDistanceForFocus) or pose default camera (setCameraLoad).</summary>
+        private void ApplyCurrentViewOption(HScene hScene, CameraControl_Ver2 ctrl)
+        {
+            var chaFemales = OrbitHelpers.GetChaFemales(hScene);
+            if (chaFemales == null || ctrl == null) return;
+            int maxFocus = OrbitHelpers.GetMaxFocusIndex(chaFemales);
+            int totalOptions = maxFocus + 1;
+            if (totalOptions <= 0) return;
+            int option = _currentViewOption;
+            if (option < 0 || option > maxFocus)
+                option = 0;
+            if (option < maxFocus)
+            {
+                var pos = OrbitHelpers.GetFocusPosition(chaFemales, option, ctrl.transBase);
+                if (pos.HasValue)
+                {
+                    ctrl.TargetPos = pos.Value;
+                    SetDistanceForFocus(ctrl, chaFemales, option);
+                }
+            }
+            else
+            {
+                var ctrlFlag = hScene.ctrlFlag;
+                if (ctrlFlag != null && ctrlFlag.nowAnimationInfo != null)
+                    hScene.setCameraLoad(ctrlFlag.nowAnimationInfo, true);
+            }
+        }
+
         private void OnOrbitCycleComplete(HScene hScene, CameraControl_Ver2 ctrl)
         {
             _orbitCycleCount++;
@@ -343,14 +389,23 @@ namespace HS2OrbitAndExciter
             bool changePose = HS2OrbitAndExciter.ChangePoseOnCycle?.Value ?? false;
             bool clothesEnabled = HS2OrbitAndExciter.ClothesChangeEnabled?.Value ?? false;
 
-            if (nRandom > 0 && _orbitCycleCount % nRandom == 0 && maxFocus > 0)
+            if (nRandom > 0 && _orbitCycleCount % nRandom == 0)
             {
-                _currentFocusIndex = Random.Range(0, maxFocus);
-                var pos = OrbitHelpers.GetFocusPosition(chaFemales, _currentFocusIndex, ctrl.transBase);
-                if (pos.HasValue)
+                int totalOptions = maxFocus + 1;
+                if (totalOptions > 0)
                 {
-                    ctrl.TargetPos = pos.Value;
-                    SetDistanceForFocus(ctrl, chaFemales, _currentFocusIndex);
+                    int current = _currentViewOption;
+                    if (current < 0 || current > maxFocus) current = 0;
+                    // Exclude current so we don't get the same option twice in a row
+                    var candidates = new List<int>();
+                    for (int i = 0; i <= maxFocus; i++)
+                        if (i != current)
+                            candidates.Add(i);
+                    if (candidates.Count > 0)
+                        _currentViewOption = candidates[Random.Range(0, candidates.Count)];
+                    else
+                        _currentViewOption = current;
+                    ApplyCurrentViewOption(hScene, ctrl);
                 }
                 _startOrbitY = AnglePresets[Random.Range(0, AnglePresets.Length)];
             }
@@ -407,16 +462,11 @@ namespace HS2OrbitAndExciter
                 _orbitCycleCount = 0;
                 var chaFemales = OrbitHelpers.GetChaFemales(hScene);
                 _currentClothesSequenceIndex = OrbitHelpers.GetClothesSequenceIndexFromCurrent(chaFemales);
-                _currentFocusIndex = 0;
-                if (chaFemales != null && chaFemales.Length > 0)
-                {
-                    var pos = OrbitHelpers.GetFocusPosition(chaFemales, 0, ctrl.transBase);
-                    if (pos.HasValue)
-                    {
-                        ctrl.TargetPos = pos.Value;
-                        SetDistanceForFocus(ctrl, chaFemales, 0);
-                    }
-                }
+                int maxFocus = OrbitHelpers.GetMaxFocusIndex(chaFemales);
+                int totalOptions = maxFocus + 1;
+                _currentViewOption = totalOptions > 0 ? Random.Range(0, totalOptions) : 0;
+                ApplyCurrentViewOption(hScene, (CameraControl_Ver2)ctrl);
+                _lastNowAnimationInfoRef = hScene.ctrlFlag?.nowAnimationInfo;
                 if (IsInPreparationState(hScene))
                 {
                     _waitingForPrepStart = true;

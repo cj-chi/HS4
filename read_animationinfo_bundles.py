@@ -13,7 +13,11 @@ OUT_DIR = Path(__file__).parent / "output"
 # 與 HSceneManager.assetNames 一致
 ASSET_NAMES = ("aibu", "houshi", "sonyu", "tokushu", "les", "3P_F2M1", "3P")
 # ExcelData 欄位：0=nameAnimation, 1=id, 21=nStatePtns（依 HSceneManager 載入順序）
+# 25=lstSystem（逗號分隔；含 4 為痛覺相關，resistPain 不足且感覺高時不顯示）
+# ReleaseEvent 在 ParmID 下一欄；依 HSceneManager 順序約在 41（依 bundle 可能 41 或 42）
 IDX_NAME, IDX_ID, IDX_STATEPTNS = 0, 1, 21
+IDX_LSTSYSTEM = 25
+IDX_RELEASEEVENT = 41
 
 
 def safe_str(s):
@@ -65,22 +69,36 @@ def main():
                 stateptns = safe_str(cells[IDX_STATEPTNS])
                 if not stateptns or not any(c in stateptns for c in "0123456"):
                     continue
+                # lstSystem: 逗號分隔數字；含 4 為痛覺相關
+                lst_system_raw = safe_str(cells[IDX_LSTSYSTEM]) if len(cells) > IDX_LSTSYSTEM else ""
+                lst_system_has_4 = "4" in [x.strip() for x in lst_system_raw.split(",") if x.strip().isdigit()]
+                # ReleaseEvent: 若該欄存在且為數字則使用，否則 -1
+                release_event = -1
+                if len(cells) > IDX_RELEASEEVENT:
+                    raw = str(cells[IDX_RELEASEEVENT]).strip()
+                    if raw and raw.isdigit():
+                        release_event = int(raw)
+                # 部分 bundle 多一欄，ReleaseEvent 在 42
+                if release_event == -1 and len(cells) > IDX_RELEASEEVENT + 1:
+                    raw = str(cells[IDX_RELEASEEVENT + 1]).strip()
+                    if raw and raw.isdigit():
+                        release_event = int(raw)
                 key = (anim_id, name_anim)
                 if key in seen:
                     continue
                 seen.add(key)
-                all_rows.append((name_anim, anim_id, stateptns))
+                all_rows.append((name_anim, anim_id, stateptns, release_event, lst_system_has_4))
 
     all_rows.sort(key=lambda x: (x[1], x[0]))
     OUT_DIR.mkdir(exist_ok=True)
     out_csv = OUT_DIR / "pose_list_from_abdata.csv"
     with open(out_csv, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["nameAnimation", "id", "stateptns"])
-        for name_anim, anim_id, stateptns in all_rows:
-            w.writerow([name_anim, anim_id, stateptns])
+        w.writerow(["nameAnimation", "id", "stateptns", "ReleaseEvent", "lstSystem_has_4"])
+        for name_anim, anim_id, stateptns, release_event, lst_system_has_4 in all_rows:
+            w.writerow([name_anim, anim_id, stateptns, release_event, lst_system_has_4])
 
-    print(f"已寫入 {out_csv}，共 {len(all_rows)} 筆（從 D:\\hs2 僅讀取）")
+    print(f"Wrote {out_csv}, {len(all_rows)} rows (ReleaseEvent column included)")
     return out_csv, all_rows
 
 

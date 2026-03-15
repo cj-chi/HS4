@@ -67,7 +67,7 @@ namespace HS2.PhotoToCard.Plugin
             _autoEnterCharaCustom = Config.Bind(
                 "Auto",
                 "AutoEnterCharaCustom",
-                true,
+                false,
                 "If true, after startup delay load CharaCustom scene and write game_ready.txt so Python can run fully unattended.");
             _startupDelaySeconds = Config.Bind(
                 "Auto",
