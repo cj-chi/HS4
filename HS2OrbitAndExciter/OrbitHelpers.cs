@@ -189,5 +189,17 @@ namespace HS2OrbitAndExciter
             if (exclude.Count == 0) return null;
             return exclude[Random.Range(0, exclude.Count)];
         }
+
+        /// <summary>Set H scene faintness state (ctrlFlag.isFaintness) and request orbit camera reapply. No-op when not in H scene.</summary>
+        public static void SetGameFaintnessAndRequestViewReapply(bool value)
+        {
+            if (!Singleton<HSceneManager>.IsInstance())
+                return;
+            var hScene = Singleton<HSceneManager>.Instance.Hscene;
+            if (hScene?.ctrlFlag == null)
+                return;
+            Traverse.Create(hScene.ctrlFlag).Field("isFaintness").SetValue(value);
+            OrbitController.RequestViewReapply();
+        }
     }
 }

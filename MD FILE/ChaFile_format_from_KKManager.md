@@ -1,6 +1,6 @@
 # ChaFile 格式（來自 KKManager 源碼）
 
-依據 [IllusionMods/KKManager](https://github.com/IllusionMods/KKManager) 的讀卡邏輯整理。HS2 / AI 少女 使用 **【AIS_Chara】** 格式，與 KK 等遊戲不同。
+依據 [IllusionMods/KKManager](https://github.com/IllusionMods/KKManager) 的讀卡邏輯整理。HS2 / AI 少女 **角色卡** 使用 **【AIS_Chara】** 格式；**座標卡**（服裝卡，檔名 `HS2CoordeF_*.png`）使用 **【AIS_Clothes】**，trailing 表頭無 dataID、區塊結構與 lstInfo 不同，詳見 `docs/HS2_座標卡格式_Coordinate_Card_Format.md`。
 
 **與既有檔案驗證**：對 `AI_191856.png` 的 trailing 執行 `validate_card_format.py`，結果為 **PASS**（loadProductNo=100、marker 含 AIS_Chara、version 1.0.0、language/userID/dataID、BlockHeader 350 位元組、basePosition=466），與本文件描述一致。
 

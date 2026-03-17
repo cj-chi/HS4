@@ -42,9 +42,13 @@ def read_trailing_header(trailing: bytes):
     user_id, pos = read_7bit_length_string(trailing, pos)
     if user_id is None:
         return None, None, "bad userID"
-    data_id, pos = read_7bit_length_string(trailing, pos)
-    if data_id is None:
-        return None, None, "bad dataID"
+    # Coordinate cards (【AIS_Clothes】) have no data_id; after user_id comes count (Int32) directly.
+    if marker is not None and "AIS_Clothes" in marker:
+        pass  # skip data_id
+    else:
+        data_id, pos = read_7bit_length_string(trailing, pos)
+        if data_id is None:
+            return None, None, "bad dataID"
     if pos + 4 > len(trailing):
         return None, None, "no count"
     count = struct.unpack("<i", trailing[pos : pos + 4])[0]
@@ -53,6 +57,9 @@ def read_trailing_header(trailing: bytes):
         return None, None, "BlockHeader truncated"
     block_header_bytes = trailing[pos : pos + count]
     pos += count
+    # Coordinate cards (AIS_Clothes) have no Int64 after the block; only Chara does.
+    if marker is not None and "AIS_Clothes" in marker:
+        return block_header_bytes, pos, None
     if pos + 8 > len(trailing):
         return None, None, "no Int64"
     pos += 8
@@ -66,9 +73,18 @@ def parse_block_header(block_header_bytes: bytes):
     try:
         raw = msgpack.unpackb(block_header_bytes, strict_map_key=False)
     except Exception as e:
-        return None, str(e)
-    # C# BlockHeader has lstInfo (List<Info>). Key might be "lstInfo" or "lst_info"
-    lst = raw.get("lstInfo") or raw.get("lst_info")
+        if "extra data" in str(e):
+            try:
+                up = msgpack.Unpacker(raw=False, strict_map_key=False)
+                up.feed(block_header_bytes)
+                raw = up.unpack()
+            except Exception as e2:
+                return None, str(e2)
+        else:
+            return None, str(e)
+    if not isinstance(raw, (dict, list)):
+        return None, "BlockHeader is not map/list (e.g. AIS_Clothes uses different layout)"
+    lst = raw.get("lstInfo") or raw.get("lst_info") if isinstance(raw, dict) else None
     if lst is None and isinstance(raw, list):
         lst = raw
     if lst is None:
@@ -82,6 +98,44 @@ def get_block_info(lst_info, name: str):
         n = info.get("name") if isinstance(info, dict) else getattr(info, "name", None)
         if n == name:
             return info
+    return None
+
+
+def parse_coordinate_savebytes(block_bytes: bytes):
+    """
+    Parse AIS_Clothes SaveBytes: Int32 clothesLen + clothes(MsgPack) + Int32 accessoryLen + accessory(MsgPack).
+    Returns (clothes_dict, accessory_dict, err).
+    """
+    if msgpack is None:
+        return None, None, "msgpack not installed"
+    if len(block_bytes) < 8:
+        return None, None, "block too short"
+    clothes_len = struct.unpack("<i", block_bytes[0:4])[0]
+    if clothes_len < 0 or 4 + clothes_len > len(block_bytes):
+        return None, None, "invalid clothes length"
+    clothes_bytes = block_bytes[4 : 4 + clothes_len]
+    pos = 4 + clothes_len
+    if pos + 4 > len(block_bytes):
+        return None, None, "no accessory length"
+    accessory_len = struct.unpack("<i", block_bytes[pos : pos + 4])[0]
+    pos += 4
+    if accessory_len < 0 or pos + accessory_len > len(block_bytes):
+        return None, None, "invalid accessory length"
+    try:
+        clothes = msgpack.unpackb(clothes_bytes, strict_map_key=False)
+        accessory = msgpack.unpackb(block_bytes[pos : pos + accessory_len], strict_map_key=False)
+    except Exception as e:
+        return None, None, str(e)
+    return clothes, accessory, None
+
+
+def get_coordinate_top_part(clothes_dict: dict):
+    """From ChaFileClothes dict get parts[0] (top). MessagePack may use 'parts' key or list."""
+    if not isinstance(clothes_dict, dict):
+        return None
+    parts = clothes_dict.get("parts")
+    if isinstance(parts, list) and len(parts) > 0:
+        return parts[0]
     return None
 
 

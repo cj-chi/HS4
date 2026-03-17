@@ -33,6 +33,8 @@ namespace HS2OrbitAndExciter
         private string _orbitDistChestStr = "";
         private string _orbitDistPelvisStr = "";
 
+        private bool _lastOverrideFaintness;
+
         // #region agent log
         private static void DebugLog(string location, string message, object data, string hypothesisId)
         {
@@ -84,6 +86,7 @@ namespace HS2OrbitAndExciter
                 _orbitDistHeadStr = (HS2OrbitAndExciter.OrbitDistanceHead?.Value ?? 0.3f).ToString("F2");
                 _orbitDistChestStr = (HS2OrbitAndExciter.OrbitDistanceChest?.Value ?? 0.3f).ToString("F2");
                 _orbitDistPelvisStr = (HS2OrbitAndExciter.OrbitDistancePelvis?.Value ?? 0.3f).ToString("F2");
+                _lastOverrideFaintness = HS2OrbitAndExciter.OverrideFaintness?.Value ?? false;
                 _needSyncFromConfig = false;
             }
 
@@ -191,6 +194,19 @@ namespace HS2OrbitAndExciter
                 if (float.TryParse(_orbitDistPelvisStr, out float v) && v >= 0.1f && v <= 3f)
                     HS2OrbitAndExciter.OrbitDistancePelvis.Value = v;
                 GUILayout.EndHorizontal();
+            }
+
+            GUILayout.Space(8);
+            GUILayout.Label("狀態 (State)", GUI.skin.box);
+            if (HS2OrbitAndExciter.OverrideFaintness != null)
+            {
+                bool newFaintness = GUILayout.Toggle(HS2OrbitAndExciter.OverrideFaintness.Value, " 脫力 (OverrideFaintness)");
+                HS2OrbitAndExciter.OverrideFaintness.Value = newFaintness;
+                if (newFaintness != _lastOverrideFaintness)
+                {
+                    _lastOverrideFaintness = newFaintness;
+                    OrbitHelpers.SetGameFaintnessAndRequestViewReapply(newFaintness);
+                }
             }
 
             GUILayout.Space(8);

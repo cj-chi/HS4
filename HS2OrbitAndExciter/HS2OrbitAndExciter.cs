@@ -29,6 +29,8 @@ namespace HS2OrbitAndExciter
         internal static ConfigEntry<float>? OrbitDistanceChest;
         /// <summary>Orbit camera distance = body height × this (pelvis focus).</summary>
         internal static ConfigEntry<float>? OrbitDistancePelvis;
+        /// <summary>Override faintness state in H scene (HScene.ctrlFlag.isFaintness). When toggled, pose list and camera view update.</summary>
+        internal static ConfigEntry<bool>? OverrideFaintness;
 
         private static void PatchSafe(Harmony harmony, System.Type patchType)
         {
@@ -77,6 +79,8 @@ namespace HS2OrbitAndExciter
                     "Camera distance for chest focus, in body-height units (0.1–3, avoid clipping).");
                 OrbitDistancePelvis = Config.Bind("Orbit", "OrbitDistancePelvis", 0.3f,
                     "Camera distance for pelvis focus, in body-height units (0.1–3, avoid clipping).");
+                OverrideFaintness = Config.Bind("State", "OverrideFaintness", false,
+                    "In H scene: force faintness state on/off (ctrlFlag.isFaintness). Affects pose list and triggers camera reapply when orbit is on.");
 
                 Patches.ExciterState.DelaySecondsAtFull = ExcitementTriggerDelaySeconds.Value;
                 ExcitementTriggerDelaySeconds.SettingChanged += (_, __) => Patches.ExciterState.DelaySecondsAtFull = ExcitementTriggerDelaySeconds.Value;

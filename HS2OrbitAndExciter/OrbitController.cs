@@ -65,6 +65,8 @@ namespace HS2OrbitAndExciter
         private int _currentClothesSequenceIndex;
         /// <summary>Track last nowAnimationInfo for pose-change detection; reapply view when it changes.</summary>
         private object? _lastNowAnimationInfoRef;
+        /// <summary>When true, next LateUpdate will call ApplyCurrentViewOption once (e.g. after faintness toggle).</summary>
+        private static bool _requestViewReapplyNextFrame;
 
         private static FieldInfo _feelFField;
         /// <summary>Seconds spent at checkpoint (Idle, no selection) while orbit is on; reset when we advance or leave checkpoint.</summary>
@@ -261,7 +263,11 @@ namespace HS2OrbitAndExciter
 
         private void LateUpdate()
         {
-            if (!_orbitActive) return;
+            if (!_orbitActive)
+            {
+                _requestViewReapplyNextFrame = false;
+                return;
+            }
 
             var hScene = GetHScene();
             if (hScene == null) return;
@@ -300,6 +306,14 @@ namespace HS2OrbitAndExciter
             {
                 _lastNowAnimationInfoRef = nowInfo;
                 ApplyCurrentViewOption(hScene, ctrl);
+            }
+
+            // After faintness toggle or other state change: reapply view once
+            if (_requestViewReapplyNextFrame)
+            {
+                _requestViewReapplyNextFrame = false;
+                ApplyCurrentViewOption(hScene, ctrl);
+                _lastNowAnimationInfoRef = hScene.ctrlFlag?.nowAnimationInfo;
             }
 
             float orbitTime = HS2OrbitAndExciter.OrbitTimePer360?.Value ?? 10f;
@@ -494,6 +508,12 @@ namespace HS2OrbitAndExciter
             if (!Singleton<HSceneManager>.IsInstance())
                 return null;
             return Singleton<HSceneManager>.Instance.Hscene;
+        }
+
+        /// <summary>Request that the next LateUpdate reapplies the current orbit view (e.g. after faintness toggle).</summary>
+        public static void RequestViewReapply()
+        {
+            _requestViewReapplyNextFrame = true;
         }
     }
 }
