@@ -106,8 +106,6 @@ namespace HS2OrbitAndExciter
             GUILayout.Label("環視 POV (Orbit)", GUI.skin.box);
             if (HS2OrbitAndExciter.OrbitTimePer360 != null)
             {
-                if (GUI.GetNameOfFocusedControl() != "OrbitTimePer360")
-                    _orbitTimeStr = HS2OrbitAndExciter.OrbitTimePer360.Value.ToString("F1");
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("環視 POV 一圈 360° 時間 (秒):", _labelStyle, GUILayout.Width(220));
                 GUI.SetNextControlName("OrbitTimePer360");
@@ -118,8 +116,6 @@ namespace HS2OrbitAndExciter
             }
             if (HS2OrbitAndExciter.OrbitCountBeforeRandom != null)
             {
-                if (GUI.GetNameOfFocusedControl() != "OrbitCountBeforeRandom")
-                    _orbitCountRandomStr = HS2OrbitAndExciter.OrbitCountBeforeRandom.Value.ToString();
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("幾次 360 後亂數焦點/角度 (0=不亂數):", _labelStyle, GUILayout.Width(220));
                 GUI.SetNextControlName("OrbitCountBeforeRandom");
@@ -130,8 +126,6 @@ namespace HS2OrbitAndExciter
             }
             if (HS2OrbitAndExciter.OrbitCountBeforePoseChange != null)
             {
-                if (GUI.GetNameOfFocusedControl() != "OrbitCountBeforePoseChange")
-                    _orbitCountPoseStr = HS2OrbitAndExciter.OrbitCountBeforePoseChange.Value.ToString();
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("幾次 360 後換姿勢:", _labelStyle, GUILayout.Width(220));
                 GUI.SetNextControlName("OrbitCountBeforePoseChange");
@@ -148,8 +142,6 @@ namespace HS2OrbitAndExciter
                 HS2OrbitAndExciter.OrbitAutoActionEnabled.Value = GUILayout.Toggle(HS2OrbitAndExciter.OrbitAutoActionEnabled.Value, " 環視時自動進動作／少操作 (OrbitAutoActionEnabled)");
             if (HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds != null)
             {
-                if (GUI.GetNameOfFocusedControl() != "OrbitCheckpointTimeout")
-                    _checkpointTimeoutStr = HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds.Value.ToString("F1");
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("環視時卡點超過幾秒自動下一階段 (0=不強制):", _labelStyle, GUILayout.Width(260));
                 GUI.SetNextControlName("OrbitCheckpointTimeout");
@@ -158,41 +150,44 @@ namespace HS2OrbitAndExciter
                     HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds.Value = v;
                 GUILayout.EndHorizontal();
             }
-            GUILayout.Label("焦點距離（單位：全身長倍率，0.1～3，設定會記錄）", _labelStyle);
+            GUILayout.Label("焦點距離（單位：全身長倍率，0.7～3，設定會記錄；輸入後立即套用）", _labelStyle);
             if (HS2OrbitAndExciter.OrbitDistanceHead != null)
             {
-                if (GUI.GetNameOfFocusedControl() != "OrbitDistHead")
-                    _orbitDistHeadStr = HS2OrbitAndExciter.OrbitDistanceHead.Value.ToString("F2");
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("頭部焦點距離:", _labelStyle, GUILayout.Width(120));
                 GUI.SetNextControlName("OrbitDistHead");
                 _orbitDistHeadStr = GUILayout.TextField(_orbitDistHeadStr, GUILayout.Width(50));
-                if (float.TryParse(_orbitDistHeadStr, out float v) && v >= 0.1f && v <= 3f)
+                if (float.TryParse(_orbitDistHeadStr, out float v) && v >= 0.7f && v <= 3f)
+                {
                     HS2OrbitAndExciter.OrbitDistanceHead.Value = v;
+                    OrbitController.RequestViewReapply();
+                }
                 GUILayout.EndHorizontal();
             }
             if (HS2OrbitAndExciter.OrbitDistanceChest != null)
             {
-                if (GUI.GetNameOfFocusedControl() != "OrbitDistChest")
-                    _orbitDistChestStr = HS2OrbitAndExciter.OrbitDistanceChest.Value.ToString("F2");
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("胸部焦點距離:", _labelStyle, GUILayout.Width(120));
                 GUI.SetNextControlName("OrbitDistChest");
                 _orbitDistChestStr = GUILayout.TextField(_orbitDistChestStr, GUILayout.Width(50));
-                if (float.TryParse(_orbitDistChestStr, out float v) && v >= 0.1f && v <= 3f)
+                if (float.TryParse(_orbitDistChestStr, out float v) && v >= 0.7f && v <= 3f)
+                {
                     HS2OrbitAndExciter.OrbitDistanceChest.Value = v;
+                    OrbitController.RequestViewReapply();
+                }
                 GUILayout.EndHorizontal();
             }
             if (HS2OrbitAndExciter.OrbitDistancePelvis != null)
             {
-                if (GUI.GetNameOfFocusedControl() != "OrbitDistPelvis")
-                    _orbitDistPelvisStr = HS2OrbitAndExciter.OrbitDistancePelvis.Value.ToString("F2");
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("骨盆焦點距離:", _labelStyle, GUILayout.Width(120));
                 GUI.SetNextControlName("OrbitDistPelvis");
                 _orbitDistPelvisStr = GUILayout.TextField(_orbitDistPelvisStr, GUILayout.Width(50));
-                if (float.TryParse(_orbitDistPelvisStr, out float v) && v >= 0.1f && v <= 3f)
+                if (float.TryParse(_orbitDistPelvisStr, out float v) && v >= 0.7f && v <= 3f)
+                {
                     HS2OrbitAndExciter.OrbitDistancePelvis.Value = v;
+                    OrbitController.RequestViewReapply();
+                }
                 GUILayout.EndHorizontal();
             }
 
@@ -213,8 +208,6 @@ namespace HS2OrbitAndExciter
             GUILayout.Label("興奮條 (Exciter)", GUI.skin.box);
             if (HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit != null)
             {
-                if (GUI.GetNameOfFocusedControl() != "FeelAddPerSec")
-                    _feelAddPerSecStr = HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit.Value.ToString("F2");
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("興奮條上升速度（0=僅滑鼠，0.01=100秒滿，0.1=10秒滿）:", _labelStyle, GUILayout.Width(320));
                 GUI.SetNextControlName("FeelAddPerSec");
@@ -228,8 +221,6 @@ namespace HS2OrbitAndExciter
             }
             if (HS2OrbitAndExciter.ExcitementTriggerDelaySeconds != null)
             {
-                if (GUI.GetNameOfFocusedControl() != "ExcitementTriggerDelay")
-                    _excitementDelayStr = HS2OrbitAndExciter.ExcitementTriggerDelaySeconds.Value.ToString("F1");
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("滿量表後幾秒才觸發 (0=馬上，點滑鼠仍馬上):", _labelStyle, GUILayout.Width(260));
                 GUI.SetNextControlName("ExcitementTriggerDelay");

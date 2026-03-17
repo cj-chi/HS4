@@ -360,9 +360,8 @@ namespace HS2OrbitAndExciter
             else if (focusIndex == 1 || focusIndex == 4) mult = HS2OrbitAndExciter.OrbitDistanceChest?.Value ?? 0.3f;
             else mult = HS2OrbitAndExciter.OrbitDistancePelvis?.Value ?? 0.3f;
             float d = bodyHeight * mult;
-            d = Mathf.Clamp(d, 0.1f * bodyHeight, 3f * bodyHeight);
-            var dir = ctrl.CameraDir;
-            ctrl.CameraDir = new Vector3(dir.x, dir.y, -d);
+            d = Mathf.Clamp(d, 0.7f * bodyHeight, 3f * bodyHeight);
+            ctrl.CameraDir = new Vector3(0f, 0f, -d);
         }
 
         /// <summary>Apply current view option: body focus (GetFocusPosition + SetDistanceForFocus) or pose default camera (setCameraLoad).</summary>
