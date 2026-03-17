@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\HS4\\HS2OrbitAndExciter\\HS2OrbitAndExciter.csproj": {}
+    "d:\\HS4\\HS2OrbitAndExciter\\HS2OrbitAndExciter.csproj": {}
   },
   "projects": {
-    "D:\\HS4\\HS2OrbitAndExciter\\HS2OrbitAndExciter.csproj": {
+    "d:\\HS4\\HS2OrbitAndExciter\\HS2OrbitAndExciter.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\HS4\\HS2OrbitAndExciter\\HS2OrbitAndExciter.csproj",
+        "projectUniqueName": "d:\\HS4\\HS2OrbitAndExciter\\HS2OrbitAndExciter.csproj",
         "projectName": "HS2OrbitAndExciter",
-        "projectPath": "D:\\HS4\\HS2OrbitAndExciter\\HS2OrbitAndExciter.csproj",
+        "projectPath": "d:\\HS4\\HS2OrbitAndExciter\\HS2OrbitAndExciter.csproj",
         "packagesPath": "C:\\Users\\jason\\.nuget\\packages\\",
-        "outputPath": "D:\\HS4\\HS2OrbitAndExciter\\obj\\",
+        "outputPath": "d:\\HS4\\HS2OrbitAndExciter\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\jason\\AppData\\Roaming\\NuGet\\NuGet.Config",

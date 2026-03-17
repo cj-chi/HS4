@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "t1LoqZuzvfDfKJdpCKJSDO6xex4fLRasI6Zw14QRavtiCc6d4eN+Dqvvsg7RxnDW1EXCUg5Y1AvU0NLyY7sPWw==",
+  "dgSpecHash": "L3YzHawyoqe564XMpKxpyg7fXJSESAJujgm/LBMQDU85jbh9cxrI9PBfGZJgYzgd1FtjiO50jPQ3LbDWLlK3Jg==",
   "success": true,
-  "projectFilePath": "D:\\HS4\\HS2OrbitAndExciter\\HS2OrbitAndExciter.csproj",
+  "projectFilePath": "d:\\HS4\\HS2OrbitAndExciter\\HS2OrbitAndExciter.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\jason\\.nuget\\packages\\bepinex.baselib\\5.4.20\\bepinex.baselib.5.4.20.nupkg.sha512",
     "C:\\Users\\jason\\.nuget\\packages\\bepinex.core\\5.4.21\\bepinex.core.5.4.21.nupkg.sha512",
