@@ -9,6 +9,7 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <HS2Managed Condition="'$(HS2Managed)' == ''">D:\hs2\HoneySelect2_Data\Managed</HS2Managed>
+    <HS2BepInEx Condition="'$(HS2BepInEx)' == ''">D:\hs2\BepInEx</HS2BepInEx>
   </PropertyGroup>
 
   <ItemGroup>
@@ -60,5 +61,8 @@
     <Error Condition="!Exists('$(HS2Managed)\Assembly-CSharp.dll') and !Exists('refs\Assembly-CSharp.dll')"
            Text="HS2 game refs missing. Set HS2Managed to your game's HoneySelect2_Data\Managed (e.g. dotnet build -p:HS2Managed=D:\HS2\HoneySelect2_Data\Managed) or copy Assembly-CSharp.dll, UnityEngine.dll, UnityEngine.CoreModule.dll, UnityEngine.IMGUIModule.dll into BepInEx_HS2_PhotoToCard\refs\" />
   </Target>
-
+  <Target Name="CopyToHS2" AfterTargets="Build" Condition="Exists('$(HS2BepInEx)\plugins')">
+    <Copy SourceFiles="$(OutputPath)HS2.PhotoToCard.dll" DestinationFolder="$(HS2BepInEx)\plugins" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Copied HS2.PhotoToCard.dll to $(HS2BepInEx)\plugins" />
+  </Target>
 </Project>

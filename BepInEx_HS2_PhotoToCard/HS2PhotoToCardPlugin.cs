@@ -14,7 +14,7 @@ using UnityEngine.SceneManagement;
 
 namespace HS2.PhotoToCard.Plugin
 {
-    /// <summary>樹狀節點：全身骨骼之一，用於除錯選單與 2D 點顯示。</summary>
+    /// <summary>樹狀節點：臉部骨骼之一，用於除錯選單與 2D 點顯示。</summary>
     public class BoneNode
     {
         public string Name;
@@ -38,7 +38,7 @@ namespace HS2.PhotoToCard.Plugin
         private bool _hasZoomedThisSession;
         private float _screenshotFov = -1f;
 
-        // 方案 A：2D 骨骼除錯選單與顯示
+        // 方案 A：臉部骨骼樹狀選單與 2D 點顯示（僅頭部骨架）
         private ConfigEntry<KeyCode> _boneDebugToggleKey;
         private bool _boneDebugVisible;
         private BoneNode _boneRoot;
@@ -82,7 +82,7 @@ namespace HS2.PhotoToCard.Plugin
             _lastCheckTime = 0f;
             _isProcessing = false;
             _readyFileWritten = false;
-            _boneDebugToggleKey = Config.Bind("Debug", "BoneDebugToggleKey", KeyCode.ScrollLock, "Key to toggle bone debug menu (tree + 2D dots). Only in CharaCustom. Default: ScrollLock (冷門不易誤觸).");
+            _boneDebugToggleKey = Config.Bind("Debug", "BoneDebugToggleKey", KeyCode.ScrollLock, "Key to toggle face bone debug menu (tree + 2D dots, face only). Only in CharaCustom. Default: ScrollLock.");
             _boneDebugVisible = false;
             Logger.LogInfo($"{PluginInfo.PLUGIN_NAME} v{PluginInfo.PLUGIN_VERSION} loaded. Request file: {_requestFilePath.Value}");
             if (_autoEnterCharaCustom.Value)
@@ -411,7 +411,7 @@ namespace HS2.PhotoToCard.Plugin
             catch { return null; }
         }
 
-        // ---------- 方案 A：全身骨骼樹狀選單 + 2D 點顯示 ----------
+        // ---------- 方案 A：臉部骨骼樹狀選單 + 2D 點顯示 ----------
 
         private static BoneNode BuildBoneTree(Transform tr)
         {
@@ -431,7 +431,8 @@ namespace HS2.PhotoToCard.Plugin
             if (_boneTreeChaCtrl != chaCtrl || _boneRoot == null)
             {
                 _boneTreeChaCtrl = chaCtrl;
-                var rootTr = chaCtrl.objBodyBone != null ? chaCtrl.objBodyBone.transform : null;
+                // 只顯示臉部相關骨骼（頭部骨架），點數較少、方便對照 MediaPipe / 滑桿
+                var rootTr = chaCtrl.objHeadBone != null ? chaCtrl.objHeadBone.transform : null;
                 _boneRoot = rootTr != null ? BuildBoneTree(rootTr) : null;
             }
         }
@@ -492,7 +493,7 @@ namespace HS2.PhotoToCard.Plugin
             GUILayout.Label("拖曳此處移動選單", GUILayout.Height(18f));
             GUI.DragWindow(new Rect(0, 0, BoneMenuWidth, 22f));
 
-            if (GUILayout.Button("關閉骨骼除錯 (熱鍵)"))
+            if (GUILayout.Button("關閉臉部骨骼除錯 (熱鍵)"))
             {
                 var chaCtrl = Singleton<CustomBase>.Instance?.chaCtrl;
                 CloseBoneDebugAndRestore(chaCtrl);
@@ -530,7 +531,7 @@ namespace HS2.PhotoToCard.Plugin
             float winH = menuHeight + 60f;
             if (_boneMenuRect.width < 1f)
                 _boneMenuRect = new Rect(8f, 8f, winW, winH);
-            _boneMenuRect = GUI.Window(BoneWindowId, _boneMenuRect, DrawBoneDebugWindow, "骨骼除錯");
+            _boneMenuRect = GUI.Window(BoneWindowId, _boneMenuRect, DrawBoneDebugWindow, "臉部骨骼除錯");
 
             // 2D 點：僅對勾選的骨骼畫在螢幕上（較大點 + 大字 + 深色底標籤）
             var cam = Camera.main;
