@@ -198,7 +198,11 @@ namespace HS2OrbitAndExciter
             var hScene = Singleton<HSceneManager>.Instance.Hscene;
             if (hScene?.ctrlFlag == null)
                 return;
-            Traverse.Create(hScene.ctrlFlag).Field("isFaintness").SetValue(value);
+            var t = Traverse.Create(hScene.ctrlFlag);
+            // Keep engine conditions consistent: many checks treat "faintness" as (isFaintness && (FaintnessType==0||1)).
+            t.Field("isFaintness").SetValue(value);
+            t.Field("FaintnessType").SetValue(value ? 1 : -1);
+            t.Field("isFaintnessVoice").SetValue(value);
             OrbitController.RequestViewReapply();
         }
     }

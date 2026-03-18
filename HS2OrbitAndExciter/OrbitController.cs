@@ -53,6 +53,13 @@ namespace HS2OrbitAndExciter
             var line = $"{{\"sessionId\":\"b1efc0\",\"runId\":\"run1\",\"hypothesisId\":\"{hypothesisId}\",\"location\":\"{location}\",\"message\":\"{message}\",\"data\":{dataJson},\"timestamp\":{ts}}}\n";
             try { File.AppendAllText(logPath, line); } catch { }
         }
+        private static void DebugAutoAdvance(string location, string message, string dataJson, string hypothesisId)
+        {
+            var logPath = Path.Combine(@"d:\HS4", "debug-11c59c.log");
+            var ts = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var line = $"{{\"sessionId\":\"11c59c\",\"runId\":\"run1\",\"hypothesisId\":\"{hypothesisId}\",\"location\":\"{location}\",\"message\":\"{message}\",\"data\":{dataJson},\"timestamp\":{ts}}}\n";
+            try { File.AppendAllText(logPath, line); } catch { }
+        }
         // #endregion
 
         private float _startOrbitY;
@@ -173,24 +180,37 @@ namespace HS2OrbitAndExciter
         }
 
         /// <summary>When orbit is on and OrbitAutoActionEnabled: set isAutoActionChange and initiative so game auto-picks next action.</summary>
+        private static int _autoActionLogCounter;
         private void ApplyOrbitAutoAction(HScene hScene)
         {
-            if (HS2OrbitAndExciter.OrbitAutoActionEnabled?.Value != true) return;
+            // #region agent log
+            bool enabled = HS2OrbitAndExciter.OrbitAutoActionEnabled?.Value == true;
+            if (!enabled) { DebugAutoAdvance("OrbitController.ApplyOrbitAutoAction", "skip", "{\"reason\":\"OrbitAutoActionEnabled false\"}", "H1"); return; }
             var ctrlFlag = hScene.ctrlFlag;
-            if (ctrlFlag == null) return;
+            if (ctrlFlag == null) { DebugAutoAdvance("OrbitController.ApplyOrbitAutoAction", "skip", "{\"reason\":\"ctrlFlag null\"}", "H1"); return; }
+            _autoActionLogCounter++;
+            if (_autoActionLogCounter % 120 == 1) DebugAutoAdvance("OrbitController.ApplyOrbitAutoAction", "set", "{\"isAutoActionChange\":true,\"initiative\":1}", "H2");
+            // #endregion
             var t = Traverse.Create(ctrlFlag);
             t.Property("isAutoActionChange").SetValue(true);
             t.Field("initiative").SetValue(1);
         }
 
         /// <summary>When orbit is on and stuck at checkpoint (Idle, no selection) for OrbitCheckpointTimeoutSeconds, call HScene.GetAutoAnimation to advance.</summary>
+        private static int _checkpointLogTicks;
         private void TryAutoAdvancePastCheckpoint(HScene hScene)
         {
-            float timeout = HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds?.Value ?? 5f;
+            float timeout = HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds?.Value ?? 2f;
             if (timeout <= 0f) return;
             var ctrlFlag = hScene.ctrlFlag;
             if (ctrlFlag == null) return;
-            if (Traverse.Create(ctrlFlag).Property("selectAnimationListInfo").GetValue() != null) { _checkpointIdleTime = 0f; return; }
+            var sel = Traverse.Create(ctrlFlag).Property("selectAnimationListInfo").GetValue();
+            bool hasSelection = sel != null;
+            // #region agent log
+            _checkpointLogTicks++;
+            if (_checkpointLogTicks % 60 == 0) DebugAutoAdvance("OrbitController.TryAutoAdvancePastCheckpoint", "tick", "{\"timeout\":" + timeout.ToString("F1") + ",\"hasSelection\":" + (hasSelection ? "true" : "false") + ",\"idleTime\":" + _checkpointIdleTime.ToString("F2") + "}", "H3");
+            // #endregion
+            if (hasSelection) { _checkpointIdleTime = 0f; return; }
             var chaFemales = OrbitHelpers.GetChaFemales(hScene);
             if (chaFemales == null || chaFemales.Length == 0) return;
             var cha = chaFemales[0];
@@ -205,6 +225,9 @@ namespace HS2OrbitAndExciter
             var isName = state.GetType().GetMethod("IsName", new[] { typeof(string) });
             if (isName == null) return;
             bool isIdle = (bool)isName.Invoke(state, new object[] { "Idle" }) || (bool)isName.Invoke(state, new object[] { "D_Idle" });
+            // #region agent log
+            if (!isIdle && _checkpointIdleTime > 0f) DebugAutoAdvance("OrbitController.TryAutoAdvancePastCheckpoint", "notIdle", "{\"idleTimeReset\":true}", "H5");
+            // #endregion
             if (!isIdle) { _checkpointIdleTime = 0f; return; }
             _checkpointIdleTime += Time.deltaTime;
             if (_checkpointIdleTime < timeout) return;
@@ -212,15 +235,22 @@ namespace HS2OrbitAndExciter
             if (_getAutoAnimationMethod == null)
             {
                 _getAutoAnimationMethod = typeof(HScene).GetMethod("GetAutoAnimation", BindingFlags.NonPublic | BindingFlags.Instance);
-                if (_getAutoAnimationMethod == null) return;
+                if (_getAutoAnimationMethod == null) { DebugAutoAdvance("OrbitController.TryAutoAdvancePastCheckpoint", "noMethod", "{}", "H4"); return; }
             }
+            // #region agent log
+            DebugAutoAdvance("OrbitController.TryAutoAdvancePastCheckpoint", "invokeGetAutoAnimation", "{\"before\":true}", "H4");
+            // #endregion
             try
             {
                 _getAutoAnimationMethod.Invoke(hScene, new object[] { false });
                 if (Traverse.Create(ctrlFlag).Property("selectAnimationListInfo").GetValue() == null)
                     _getAutoAnimationMethod.Invoke(hScene, new object[] { true });
             }
-            catch { /* ignore */ }
+            catch (System.Exception e) { DebugAutoAdvance("OrbitController.TryAutoAdvancePastCheckpoint", "invokeException", "{\"msg\":\"" + (e.Message ?? "").Replace("\"", "'") + "\"}", "H4"); }
+            // #region agent log
+            bool hasSelAfter = Traverse.Create(ctrlFlag).Property("selectAnimationListInfo").GetValue() != null;
+            DebugAutoAdvance("OrbitController.TryAutoAdvancePastCheckpoint", "afterInvoke", "{\"selectAnimationListInfoSet\":" + (hasSelAfter ? "true" : "false") + "}", "H4");
+            // #endregion
         }
 
         private void Update()
@@ -360,7 +390,7 @@ namespace HS2OrbitAndExciter
             else if (focusIndex == 1 || focusIndex == 4) mult = HS2OrbitAndExciter.OrbitDistanceChest?.Value ?? 0.3f;
             else mult = HS2OrbitAndExciter.OrbitDistancePelvis?.Value ?? 0.3f;
             float d = bodyHeight * mult;
-            d = Mathf.Clamp(d, 0.7f * bodyHeight, 3f * bodyHeight);
+            d = Mathf.Clamp(d, 1f * bodyHeight, 3f * bodyHeight);
             ctrl.CameraDir = new Vector3(0f, 0f, -d);
         }
 

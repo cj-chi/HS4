@@ -80,7 +80,7 @@ namespace HS2OrbitAndExciter
                 _orbitTimeStr = HS2OrbitAndExciter.OrbitTimePer360.Value.ToString("F1");
                 _orbitCountRandomStr = (HS2OrbitAndExciter.OrbitCountBeforeRandom?.Value ?? 0).ToString();
                 _orbitCountPoseStr = (HS2OrbitAndExciter.OrbitCountBeforePoseChange?.Value ?? 2).ToString();
-                _checkpointTimeoutStr = (HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds?.Value ?? 5f).ToString("F1");
+                _checkpointTimeoutStr = (HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds?.Value ?? 2f).ToString("F1");
                 _excitementDelayStr = (HS2OrbitAndExciter.ExcitementTriggerDelaySeconds?.Value ?? 0f).ToString("F1");
                 _feelAddPerSecStr = (HS2OrbitAndExciter.FeelAddPerSecondWhenOrbit?.Value ?? 0.1f).ToString("F2");
                 _orbitDistHeadStr = (HS2OrbitAndExciter.OrbitDistanceHead?.Value ?? 0.3f).ToString("F2");
@@ -150,14 +150,14 @@ namespace HS2OrbitAndExciter
                     HS2OrbitAndExciter.OrbitCheckpointTimeoutSeconds.Value = v;
                 GUILayout.EndHorizontal();
             }
-            GUILayout.Label("焦點距離（單位：全身長倍率，0.7～3，設定會記錄；輸入後立即套用）", _labelStyle);
+            GUILayout.Label("焦點距離（單位：全身長倍率，1～3，設定會記錄；輸入後立即套用）", _labelStyle);
             if (HS2OrbitAndExciter.OrbitDistanceHead != null)
             {
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("頭部焦點距離:", _labelStyle, GUILayout.Width(120));
                 GUI.SetNextControlName("OrbitDistHead");
                 _orbitDistHeadStr = GUILayout.TextField(_orbitDistHeadStr, GUILayout.Width(50));
-                if (float.TryParse(_orbitDistHeadStr, out float v) && v >= 0.7f && v <= 3f)
+                if (float.TryParse(_orbitDistHeadStr, out float v) && v >= 1f && v <= 3f)
                 {
                     HS2OrbitAndExciter.OrbitDistanceHead.Value = v;
                     OrbitController.RequestViewReapply();
@@ -170,7 +170,7 @@ namespace HS2OrbitAndExciter
                 GUILayout.Label("胸部焦點距離:", _labelStyle, GUILayout.Width(120));
                 GUI.SetNextControlName("OrbitDistChest");
                 _orbitDistChestStr = GUILayout.TextField(_orbitDistChestStr, GUILayout.Width(50));
-                if (float.TryParse(_orbitDistChestStr, out float v) && v >= 0.7f && v <= 3f)
+                if (float.TryParse(_orbitDistChestStr, out float v) && v >= 1f && v <= 3f)
                 {
                     HS2OrbitAndExciter.OrbitDistanceChest.Value = v;
                     OrbitController.RequestViewReapply();
@@ -183,7 +183,7 @@ namespace HS2OrbitAndExciter
                 GUILayout.Label("骨盆焦點距離:", _labelStyle, GUILayout.Width(120));
                 GUI.SetNextControlName("OrbitDistPelvis");
                 _orbitDistPelvisStr = GUILayout.TextField(_orbitDistPelvisStr, GUILayout.Width(50));
-                if (float.TryParse(_orbitDistPelvisStr, out float v) && v >= 0.7f && v <= 3f)
+                if (float.TryParse(_orbitDistPelvisStr, out float v) && v >= 1f && v <= 3f)
                 {
                     HS2OrbitAndExciter.OrbitDistancePelvis.Value = v;
                     OrbitController.RequestViewReapply();

@@ -71,7 +71,7 @@ namespace HS2OrbitAndExciter
                     "When orbit (Ctrl+Shift+O) is active, add this much to excitement gauge per second (0 = only game default / mouse). 0.1 = fill in 10 s.");
                 OrbitAutoActionEnabled = Config.Bind("Orbit", "OrbitAutoActionEnabled", true,
                     "When orbit is on: enable game auto action so next pose/action is chosen automatically (user rarely needs to operate).");
-                OrbitCheckpointTimeoutSeconds = Config.Bind("Orbit", "OrbitCheckpointTimeoutSeconds", 5f,
+                OrbitCheckpointTimeoutSeconds = Config.Bind("Orbit", "OrbitCheckpointTimeoutSeconds", 2f,
                     "When orbit is on and stuck at checkpoint (Idle, no selection): auto-advance after this many seconds. 0 = only use game auto, no forced advance.");
                 OrbitDistanceHead = Config.Bind("Orbit", "OrbitDistanceHead", 0.3f,
                     "Camera distance for head focus, in body-height units (0.1–3, avoid clipping).");
@@ -99,6 +99,7 @@ namespace HS2OrbitAndExciter
                 PatchSafe(harmony, typeof(Patches.OrbitBypass_FaintnessStartAibuProc));
                 PatchSafe(harmony, typeof(Patches.OrbitBypass_AfterTheInsideWaitingProc));
                 PatchSafe(harmony, typeof(Patches.OrbitBypass_Masturbation_StartProcTrriger));
+                PatchSafe(harmony, typeof(Patches.OrbitAutoActionAfterProcPatches));
                 // Masturbation/Les/Sonyu/Aibu 不載入（此遊戲 build 無對應方法，避免警告）
                 var go = new GameObject("HS2OrbitAndExciterController");
                 DontDestroyOnLoad(go);

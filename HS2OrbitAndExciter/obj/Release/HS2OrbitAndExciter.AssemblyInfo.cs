@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HS2OrbitAndExciter")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e9059cf48531a211b22c4f5912f8a08f2c501591")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+09bdb61f72b7377d8a94b84e32ff2560cb906594")]
 [assembly: System.Reflection.AssemblyProductAttribute("HS2OrbitAndExciter")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HS2OrbitAndExciter")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

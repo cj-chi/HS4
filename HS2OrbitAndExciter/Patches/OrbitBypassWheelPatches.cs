@@ -8,7 +8,7 @@ namespace HS2OrbitAndExciter.Patches
     /// </summary>
     internal static class OrbitBypassWheelState
     {
-        public const float BypassWheelValue = 0.05f;
+        public const float BypassWheelValue = 0.10f;
         public const float DelaySeconds = 2f;
         private static float _idleTimer;
 
