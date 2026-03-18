@@ -9,6 +9,7 @@ namespace HS2SkeletonToggle
     public static class SkeletonToggleCore
     {
         public static bool SkeletonMode { get; set; }
+        public static bool RefLinesVisible { get; set; }
     }
 
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -17,19 +18,26 @@ namespace HS2SkeletonToggle
         private ConfigEntry<KeyCode> _hotkeyMod1;
         private ConfigEntry<KeyCode> _hotkeyMod2;
         private ConfigEntry<KeyCode> _hotkeyKey;
+        private ConfigEntry<KeyCode> _refLinesKey;
         private ConfigEntry<bool> _skeletonOnlySaved;
+        private ConfigEntry<bool> _refLinesVisibleSaved;
         private readonly List<SkinnedMeshRenderer> _hiddenRenderers = new List<SkinnedMeshRenderer>();
         private Camera _mainCam;
         private bool _skeletonMode;
+        private bool _refLinesVisible;
 
         private void Awake()
         {
             _hotkeyMod1 = Config.Bind("Hotkey", "Modifier1", KeyCode.LeftControl, "First modifier (Ctrl)");
             _hotkeyMod2 = Config.Bind("Hotkey", "Modifier2", KeyCode.LeftShift, "Second modifier (Shift)");
             _hotkeyKey = Config.Bind("Hotkey", "Key", KeyCode.S, "Key (S)");
+            _refLinesKey = Config.Bind("Hotkey", "RefLinesKey", KeyCode.D, "Toggle ref lines key (D)");
             _skeletonOnlySaved = Config.Bind("State", "SkeletonOnly", false, "Last skeleton-only state");
+            _refLinesVisibleSaved = Config.Bind("State", "RefLinesVisible", true, "Last ref lines visible state");
             _skeletonMode = _skeletonOnlySaved.Value;
             SkeletonToggleCore.SkeletonMode = _skeletonMode;
+            _refLinesVisible = _refLinesVisibleSaved.Value;
+            SkeletonToggleCore.RefLinesVisible = _refLinesVisible;
         }
 
         private void OnEnable()
@@ -50,6 +58,14 @@ namespace HS2SkeletonToggle
             if (_mainCam == null) _mainCam = Camera.main;
             if (_mainCam != null && _mainCam.GetComponent<SkeletonCameraHelper>() == null)
                 _mainCam.gameObject.AddComponent<SkeletonCameraHelper>();
+
+            // Ctrl+Shift+D toggles ref line visibility (independent of skeleton mode)
+            if (Input.GetKey(_hotkeyMod1.Value) && Input.GetKey(_hotkeyMod2.Value) && Input.GetKeyDown(_refLinesKey.Value))
+            {
+                _refLinesVisible = !_refLinesVisible;
+                _refLinesVisibleSaved.Value = _refLinesVisible;
+                SkeletonToggleCore.RefLinesVisible = _refLinesVisible;
+            }
 
             if (Input.GetKey(_hotkeyMod1.Value) && Input.GetKey(_hotkeyMod2.Value) && Input.GetKeyDown(_hotkeyKey.Value))
             {

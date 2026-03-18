@@ -6,6 +6,7 @@ namespace HS2SkeletonToggle
 {
     /// <summary>
     /// Attached to Main Camera; draws skeleton lines in OnPostRender when skeleton mode is on.
+    /// When head is hidden, also draws the five HS2 ref lines (head_width, eye_span, eye_size, chin_height, nose_height).
     /// </summary>
     public class SkeletonCameraHelper : MonoBehaviour
     {
@@ -14,6 +15,9 @@ namespace HS2SkeletonToggle
         private static readonly int DstBlend = Shader.PropertyToID("_DstBlend");
         private static readonly int Cull = Shader.PropertyToID("_Cull");
         private static readonly int ZWrite = Shader.PropertyToID("_ZWrite");
+
+        /// <summary>Five HS2 ref lines: same semantics as draw_top5_hs2_refs.py (MediaPipe → HS2 bone mapping).</summary>
+        private static readonly Color RefLineColor = new Color(1f, 0.85f, 0.2f, 0.95f); // yellow
 
         private void Awake()
         {
@@ -29,6 +33,8 @@ namespace HS2SkeletonToggle
             _lineMat.SetInt(DstBlend, (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             _lineMat.SetInt(Cull, (int)UnityEngine.Rendering.CullMode.Off);
             _lineMat.SetInt(ZWrite, 0);
+            // Draw on top to avoid being occluded by hair/face geometry.
+            _lineMat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
         }
 
         private void OnPostRender()
@@ -39,7 +45,6 @@ namespace HS2SkeletonToggle
             GL.PushMatrix();
             GL.LoadProjectionMatrix(GL.GetGPUProjectionMatrix(Camera.main != null ? Camera.main.projectionMatrix : GetComponent<Camera>().projectionMatrix, false));
             GL.modelview = (Camera.main != null ? Camera.main : GetComponent<Camera>()).worldToCameraMatrix;
-            GL.LoadIdentity();
             GL.Begin(GL.LINES);
             GL.Color(new Color(0.2f, 0.8f, 0.2f, 0.9f));
 
@@ -54,6 +59,22 @@ namespace HS2SkeletonToggle
             }
 
             GL.End();
+
+            // Five HS2 ref lines (head_width, eye_span, eye_size, chin_height, nose_height)
+            if (SkeletonToggleCore.RefLinesVisible)
+            {
+                Camera cam = Camera.main != null ? Camera.main : GetComponent<Camera>();
+                _lineMat.SetPass(0);
+                GL.Begin(GL.LINES);
+                GL.Color(RefLineColor);
+                foreach (var cha in chaControls)
+                {
+                    if (cha?.objBodyBone == null) continue;
+                    DrawFiveRefLines(cha, cam);
+                }
+                GL.End();
+            }
+
             GL.PopMatrix();
         }
 
@@ -66,6 +87,77 @@ namespace HS2SkeletonToggle
                 GL.Vertex(t.position);
                 GL.Vertex(child.position);
                 DrawBoneHierarchy(child, depth + 1, maxDepth);
+            }
+        }
+
+        /// <summary>Recursive find transform by name (avoids dependency on IllusionUtility.GetUtility).</summary>
+        private static Transform FindLoop(Transform root, string name)
+        {
+            if (root == null || string.IsNullOrEmpty(name)) return null;
+            if (root.name == name) return root;
+            for (int i = 0; i < root.childCount; i++)
+            {
+                var found = FindLoop(root.GetChild(i), name);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        /// <summary>World-space offset for thick lines (multiple passes). Logs showed segments=7 drawn but invisible; 0.003 was too thin at typical camera distance.</summary>
+        private const float RefLineThicknessWorld = 0.018f;
+        private const int RefLinePasses = 9;
+
+        /// <summary>Draw five reference lines (HS2 bone space) matching draw_top5_hs2_refs.py semantics. Draws thick by multiple offset passes.</summary>
+        private static void DrawFiveRefLines(ChaControl cha, Camera cam)
+        {
+            Transform root = cha.objBodyBone.transform;
+            var segments = new List<(Vector3 a, Vector3 b)>();
+
+            // 1) head_width
+            Transform cheekL = FindLoop(root, "cf_J_CheekUp_L");
+            Transform cheekR = FindLoop(root, "cf_J_CheekUp_R");
+            Transform faceUp = FindLoop(root, "cf_J_FaceUp_ty");
+            Transform chinTip = FindLoop(root, "cf_J_ChinTip_s");
+            if (cheekL != null && cheekR != null) { segments.Add((cheekL.position, cheekR.position)); }
+            if (faceUp != null && chinTip != null) { segments.Add((faceUp.position, chinTip.position)); }
+
+            // 2) eye_span
+            Transform eyeL = FindLoop(root, "cf_J_Eye_s_L");
+            Transform eyeR = FindLoop(root, "cf_J_Eye_s_R");
+            if (eyeL != null && eyeR != null) { segments.Add((eyeL.position, eyeR.position)); }
+
+            // 3) eye_size
+            Transform eye01L = FindLoop(root, "cf_J_Eye01_L");
+            Transform eye03L = FindLoop(root, "cf_J_Eye03_L");
+            Transform eye01R = FindLoop(root, "cf_J_Eye01_R");
+            Transform eye03R = FindLoop(root, "cf_J_Eye03_R");
+            if (eye01L != null && eye03L != null) { segments.Add((eye01L.position, eye03L.position)); }
+            if (eye01R != null && eye03R != null) { segments.Add((eye01R.position, eye03R.position)); }
+
+            // 4) chin_height
+            Transform mouthUp = FindLoop(root, "cf_J_Mouthup");
+            Transform mouthLow = FindLoop(root, "cf_J_MouthLow");
+            if (chinTip != null && mouthUp != null && mouthLow != null)
+            {
+                Vector3 mouthCenter = (mouthUp.position + mouthLow.position) * 0.5f;
+                segments.Add((chinTip.position, mouthCenter));
+            }
+
+            // 5) nose_height
+            Transform noseBridge = FindLoop(root, "cf_J_NoseBridge_t");
+            Transform noseTip = FindLoop(root, "cf_J_Nose_tip");
+            if (noseBridge != null && noseTip != null) { segments.Add((noseBridge.position, noseTip.position)); }
+
+            Vector3 right = (cam != null ? cam.transform.right : Vector3.right) * RefLineThicknessWorld;
+            int half = RefLinePasses / 2;
+            foreach (var (a, b) in segments)
+            {
+                for (int k = -half; k <= half; k++)
+                {
+                    Vector3 off = right * k;
+                    GL.Vertex(a + off);
+                    GL.Vertex(b + off);
+                }
             }
         }
     }
