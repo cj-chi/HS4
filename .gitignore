@@ -26,6 +26,8 @@ debug-*.log
 # BepInEx 插件編譯
 BepInEx_HS2_PhotoToCard/bin/
 BepInEx_HS2_PhotoToCard/obj/
+HS2OrbitAndExciter/bin/
+HS2OrbitAndExciter/obj/
 
 # IDE
 .idea/

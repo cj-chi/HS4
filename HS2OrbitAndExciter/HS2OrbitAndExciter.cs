@@ -73,12 +73,12 @@ namespace HS2OrbitAndExciter
                     "When orbit is on: enable game auto action so next pose/action is chosen automatically (user rarely needs to operate).");
                 OrbitCheckpointTimeoutSeconds = Config.Bind("Orbit", "OrbitCheckpointTimeoutSeconds", 2f,
                     "When orbit is on and stuck at checkpoint (Idle, no selection): auto-advance after this many seconds. 0 = only use game auto, no forced advance.");
-                OrbitDistanceHead = Config.Bind("Orbit", "OrbitDistanceHead", 0.3f,
-                    "Camera distance for head focus, in body-height units (0.1–3, avoid clipping).");
-                OrbitDistanceChest = Config.Bind("Orbit", "OrbitDistanceChest", 0.3f,
-                    "Camera distance for chest focus, in body-height units (0.1–3, avoid clipping).");
-                OrbitDistancePelvis = Config.Bind("Orbit", "OrbitDistancePelvis", 0.3f,
-                    "Camera distance for pelvis focus, in body-height units (0.1–3, avoid clipping).");
+                OrbitDistanceHead = Config.Bind("Orbit", "OrbitDistanceHead", 1.4f,
+                    "Body-focus orbit: distance multiplier vs character height (1.35–3 recommended; values below 1 are treated as 1.35).");
+                OrbitDistanceChest = Config.Bind("Orbit", "OrbitDistanceChest", 1.4f,
+                    "Body-focus orbit: distance multiplier vs character height (1.35–3 recommended; values below 1 are treated as 1.35).");
+                OrbitDistancePelvis = Config.Bind("Orbit", "OrbitDistancePelvis", 1.4f,
+                    "Body-focus orbit: distance multiplier vs character height (1.35–3 recommended; values below 1 are treated as 1.35).");
                 OverrideFaintness = Config.Bind("State", "OverrideFaintness", false,
                     "In H scene: force faintness state on/off (ctrlFlag.isFaintness). Affects pose list and triggers camera reapply when orbit is on.");
 
@@ -99,11 +99,18 @@ namespace HS2OrbitAndExciter
                 PatchSafe(harmony, typeof(Patches.OrbitBypass_FaintnessStartAibuProc));
                 PatchSafe(harmony, typeof(Patches.OrbitBypass_AfterTheInsideWaitingProc));
                 PatchSafe(harmony, typeof(Patches.OrbitBypass_Masturbation_StartProcTrriger));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_AutoStartProcTrigger));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_AutoStartAibuProc));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_AutoStartHoushiProc));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_AutoStartSonyuProc));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_StartSonyuProc));
+                PatchSafe(harmony, typeof(Patches.OrbitBypass_AutoAfterTheInsideWaitingProc));
                 PatchSafe(harmony, typeof(Patches.OrbitAutoActionAfterProcPatches));
                 // Masturbation/Les/Sonyu/Aibu 不載入（此遊戲 build 無對應方法，避免警告）
                 var go = new GameObject("HS2OrbitAndExciterController");
                 DontDestroyOnLoad(go);
                 go.AddComponent<OrbitController>();
+                go.AddComponent<OrbitHSceneLateAssist>();
                 var gui = go.AddComponent<OrbitSettingsGUI>();
                 // #region agent log
                 try

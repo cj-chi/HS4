@@ -1,0 +1,31 @@
+# HS2OrbitAndExciter 變更紀錄
+
+## 2026-03-25
+
+### 相機與環視
+
+- **執行順序**：`OrbitController` 使用 `[DefaultExecutionOrder(-100)]`，在 `CameraControl_Ver2.LateUpdate` 之前寫入 `CamDat.Rot`；環視時**不要**指派 `CameraAngle`（其 setter 未乘 `transBase`，會與 `CameraUpdate` 衝突）。
+- **滾輪**：H 場景相機 `ZoomCondition` 恒為 false，外掛在環視開啟時鏡像 `InputMouseWheelZoomZoomProc` 邏輯調整 `CameraDir.z`。
+- **距離**：`SetDistanceForFocus` 依身高與設定倍率（預設約 1.4）限制距離，避免過近。
+
+### Q / W / E 焦點
+
+- **`NoCtrlCondition`**：僅在滑鼠左／右／中鍵拖曳時視為玩家接管；**不再**用 `GetKey(Q/W/E)`，與 vanilla `CameraKeyCtrl` 的 `GetKeyDown` 語意一致。
+- **`ApplyOrbitFocusHotkeys`**：在 `LateUpdate` 中於寫入環視 yaw 前呼叫 `GlobalMethod.CameraKeyCtrl`，並在偵測到 Q/W/E（含 Shift 第二女角）時呼叫 `SetDistanceForFocus`、同步 `_currentViewOption`；`inputForcus` 時略過（同 `HScene.ShortcutKey`）。
+
+### H 場景邏輯時序
+
+- **`OrbitHSceneLateAssist`**：`[DefaultExecutionOrder(32000)]`，在 H 場景 proc 之後執行 `ApplyOrbitAutoAction`、`DebugOrbitIdlePass`、`TryAutoAdvancePastCheckpoint`，避免與相機數學搶順序。
+
+### 自動推進與滾輪繞過
+
+- `isAutoActionChange` 以反射 **Field** 為主；checkpoint 在無 `selectAnimationListInfo` 時累積逾時並可呼叫 `GetAutoAnimation`。
+- Harmony：`OrbitBypassWheelPatches` 擴充 Idle／D_Idle 等分支的滾輪 gate 繞過（含 Aibu 等），並以 `Time.unscaledTime` 處理延遲計時。
+
+### 除錯
+
+- NDJSON 寫入 `d:\HS4\debug-341efe.log`（與其他 `debug-*.log`，已列入 repo 根目錄 `.gitignore`）。驗證 QWE 時可搜尋 `focusHotkey`。
+
+### 建置產物
+
+- `bin/`、`obj/` 已自 Git 追蹤移除，請以 `dotnet build` 本地產出 DLL；`CopyToHS2` 目標預設為 `D:\hs2\BepInEx\plugins`（可依 `HS2BepInEx` MSBuild 屬性覆寫）。
