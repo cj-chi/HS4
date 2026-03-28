@@ -241,39 +241,30 @@ namespace HS2OrbitAndExciter
             }
         }
 
-        /// <summary>When orbit is on and OrbitAutoActionEnabled: set isAutoActionChange and initiative so game auto-picks next action.</summary>
-        private static int _autoActionLogCounter;
+        /// <summary>
+        /// Legacy: used to set isAutoActionChange=true and initiative=1 every frame.
+        /// REMOVED: setting initiative=1 forces Auto mode which gates scroll wheel behind a timer;
+        /// setting isAutoActionChange=true causes game to hide motion list (SetMotionListDraw(false)).
+        /// Auto-advance is now handled solely by TryAutoAdvancePastCheckpoint which directly calls
+        /// GetAutoAnimation after a timeout, without forcing Auto mode or hiding UI.
+        /// </summary>
         private void ApplyOrbitAutoAction(HScene hScene)
         {
-            // #region agent log
             bool enabled = HS2OrbitAndExciter.OrbitAutoActionEnabled?.Value == true;
-            if (!enabled) { DebugAutoAdvance("OrbitController.ApplyOrbitAutoAction", "skip", "{\"reason\":\"OrbitAutoActionEnabled false\"}", "H1"); return; }
-            var ctrlFlag = hScene.ctrlFlag;
-            if (ctrlFlag == null) { DebugAutoAdvance("OrbitController.ApplyOrbitAutoAction", "skip", "{\"reason\":\"ctrlFlag null\"}", "H1"); return; }
-            _autoActionLogCounter++;
-            // #endregion
-            var flagType = ctrlFlag.GetType();
+            if (!enabled) return;
+            // Ensure reflection for isAutoActionChange is initialized (used by RunLateHSceneAssist mouse-clear)
             if (_isAutoActionChangeField == null && _isAutoActionChangeProp == null)
             {
-                _isAutoActionChangeField = flagType.GetField("isAutoActionChange", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                if (_isAutoActionChangeField == null)
-                    _isAutoActionChangeProp = flagType.GetProperty("isAutoActionChange", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var ctrlFlag = hScene.ctrlFlag;
+                if (ctrlFlag != null)
+                {
+                    var flagType = ctrlFlag.GetType();
+                    _isAutoActionChangeField = flagType.GetField("isAutoActionChange", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (_isAutoActionChangeField == null)
+                        _isAutoActionChangeProp = flagType.GetProperty("isAutoActionChange", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                }
             }
-            try
-            {
-                if (_isAutoActionChangeField != null)
-                    _isAutoActionChangeField.SetValue(ctrlFlag, true);
-                else
-                    _isAutoActionChangeProp?.SetValue(ctrlFlag, true, null);
-            }
-            catch { }
-            Traverse.Create(ctrlFlag).Field("initiative").SetValue(1);
-            // #region agent log
-            bool readBack = ctrlFlag.isAutoActionChange;
-            if (_autoActionLogCounter % 120 == 1)
-                DebugAutoAdvance("OrbitController.ApplyOrbitAutoAction", "set",
-                    "{\"isAutoActionChange\":true,\"initiative\":1,\"readBackAutoChange\":" + (readBack ? "true" : "false") + "}", "H2");
-            // #endregion
+            // No longer set isAutoActionChange or initiative; TryAutoAdvancePastCheckpoint handles auto-advance.
         }
 
         /// <summary>When orbit is on and stuck at checkpoint (Idle, no selection) for OrbitCheckpointTimeoutSeconds, call HScene.GetAutoAnimation to advance.</summary>
@@ -792,6 +783,12 @@ namespace HS2OrbitAndExciter
         internal void RunLateHSceneAssist(HScene hScene)
         {
             if (!_orbitActive || hScene == null) return;
+            // When user is interacting (mouse held), pause auto-advance so game stays responsive.
+            if (IsUserControllingCamera())
+            {
+                _checkpointIdleTime = 0f;
+                return;
+            }
             ApplyOrbitAutoAction(hScene);
             DebugOrbitIdlePass(hScene);
             TryAutoAdvancePastCheckpoint(hScene);
