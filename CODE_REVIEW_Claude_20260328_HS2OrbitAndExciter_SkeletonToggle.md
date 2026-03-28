@@ -84,20 +84,21 @@ HS2 的滾輪在 H-scene 中**有兩個獨立功能**，需分開理解：
 | **動畫速度調整**（`ctrlFlag.speed ± 0.05f`） | `ManualAibuProc`、`ManualHoushiProc`、`ManualSonyuProc`、`Masturbation` 等 method 直接讀取 `Mouse ScrollWheel` | ❌ 不受影響（仍在運作） |
 | **Finish 選項切換**（FinishBefore/InSide/OutSide 等） | `HSceneSpriteFinishCategory`（lines 46–63）用滾輪在六個 Finish 選項間循環 | ❌ 不受影響（仍在運作） |
 
-**結論**：外掛認為「H-scene 滾輪無效」是錯誤假設。ZoomCondition=false 只封鎖縮放，另外兩個使用路徑完全獨立且持續運作。環視開啟時外掛讀取同一軸做縮放，造成三重讀取衝突。
+**重要更正**：原本描述「三重同時衝突」有誤。速度調整（Loop 期間）與 Finish 選項切換（OLoop 期間）發生在**不同的遊戲狀態**，不會同時作用。且高潮動畫進行中速度固定不可調，滾輪此時無遊戲用途。實際衝突依遊戲狀態如下：
 
-### 外掛對滾輪的處理（雙重衝突）
+| 遊戲狀態 | feel_f 範圍 | 滾輪遊戲用途 | 外掛 ApplyOrbitScrollZoom | 衝突 |
+|----------|-----------|------------|--------------------------|------|
+| WLoop/SLoop | 0 → 0.75 | 速度調整 ±0.05f | 相機縮放 | 🔴 衝突 |
+| OLoop/D_OLoop | 0.75 → 1.0 | 速度調整 + Finish 選項切換 | 相機縮放 | 🔴 衝突（雙重） |
+| 高潮動畫 | — | 無（速度固定不可調） | 相機縮放 | 無衝突 |
 
-| 狀態 | 遊戲讀取滾輪做速度調整 | 外掛行為 | 衝突 |
-|------|----------------------|---------|------|
-| 環視關閉 | 正常讀取，玩家可調速 | 不介入 | 無 |
-| 環視開啟 | 仍在讀取 `Mouse ScrollWheel` | `ApplyOrbitScrollZoom()` 同幀讀取同一軸做相機縮放 | **🔴 同一輸入被兩套邏輯同時使用** |
+**新發現 — Home/End 功能重疊**：`BaseCameraControl_Ver2`（lines 415–425）用 Home/End 鍵修改 `CamDat.Dir.z`，且**不受 ZoomCondition 閘門控制**，在 H-scene 仍然有效。`ApplyOrbitScrollZoom()` 修改的是同一個 `CameraDir.z`——兩者功能完全重疊。建議直接**移除 `ApplyOrbitScrollZoom()`**，讓 Home/End 負責縮放，滾輪完整歸還遊戲。
 
-### OrbitBypassWheelPatches「滾輪閘門」的副作用
+### OrbitBypassWheelPatches「閘門」說明
 
-遊戲狀態機在 Idle → 動作循環的轉換需要 `wheel != 0`（使用者確認機制）。13 個被 patch 的方法在環視模式下，等待 2 秒後注入假值 `wheel = 0.10f` 解鎖閘門。
+OrbitBypassWheelPatches 注入 `wheel = 0.10f` 的目的是解鎖 **proc 入口的狀態轉換閘**（`StartProcTrigger`、`StartAibuProc` 等），即 feel≈0 時從 Idle 進入動作循環的確認機制。這**與 feel_f ≥ 1.0 的高潮觸發邏輯無關**。
 
-**副作用**：這個注入值同樣會被速度調整邏輯讀到（`ctrlFlag.speed += 0.10f * wheelActionCount`），導致每次自動推進都會意外拉高動畫速度，這不是預期行為。
+**副作用**：注入的 `wheel = 0.10f` 同樣被速度調整邏輯讀到，每次自動推進都會意外拉高動畫速度。
 
 ### 所有被攔截的原始遊戲操作
 
@@ -110,8 +111,8 @@ HS2 的滾輪在 H-scene 中**有兩個獨立功能**，需分開理解：
 | Shift+Q | 無（遊戲未使用） | 設定女2頭部焦點 3 | 環視開啟 + 雙女角 | ✅ |
 | Shift+W | 無（遊戲未使用） | 設定女2胸部焦點 4 | 環視開啟 + 雙女角 | ✅ |
 | Shift+E | 無（遊戲未使用） | 設定女2臀部焦點 5 | 環視開啟 + 雙女角 | ✅ |
-| **滑鼠左鍵** | H-scene 主要互動鍵（UI/場景點選） | `ExciterTriggerPatches` 攔截為立即觸發高潮 | H-scene | 🔴 違規 → 改 `Ctrl+左鍵` 或 `Ctrl+G` |
-| **滾輪** | 控制動畫 LOOP 速度（`ctrlFlag.speed ± 0.05f`）。`ZoomCondition=false` 只封鎖了「縮放」，但速度調整路徑不受 ZoomCondition 影響，仍在運作 | 環視開啟時接管為相機縮放；OrbitBypassWheelPatches 注入 `wheel=0.10f` 同時觸發速度拉高 | 環視開啟 | 🔴 違規 → 縮放改 `Ctrl+滾輪`；bypass 改用不干擾速度的機制 |
+| **滑鼠左鍵** | H-scene 主要互動鍵（UI/場景點選） | `ExciterTriggerPatches` 攔截為立即觸發高潮（走 Path A，繞過 Finish 選項選擇） | H-scene | 🔴 違規 → 改 `Ctrl+左鍵` 或 `Ctrl+G` |
+| **滾輪** | Loop/OLoop 期間控速 ±0.05f；OLoop 期間同時切換 Finish 選項；高潮動畫中無效。Home/End 在 H-scene 仍可縮放（不受 ZoomCondition 影響） | 環視開啟時接管為相機縮放（與 Home/End 功能重疊）；OrbitBypassWheelPatches 注入 `wheel=0.10f` 同時觸發速度拉高 | 環視開啟 | 🔴 違規 → **直接移除 `ApplyOrbitScrollZoom()`**（Home/End 已能縮放）；bypass 改用不干擾速度的機制 |
 | Ctrl+Shift+S | 無 | 切換骨骼視覺化 | 任何時候 | ✅ |
 | Ctrl+Shift+D | 無 | 切換參考線 | 任何時候 | ✅ |
 | Ctrl+Shift+F | 無 | 開啟參考線互動選單 | 任何時候 | ✅ |
@@ -134,34 +135,61 @@ HS2 的滾輪在 H-scene 中**有兩個獨立功能**，需分開理解：
 | Shift+Q | 相機焦點：女2 頭部 |
 | Shift+W | 相機焦點：女2 胸部 |
 | Shift+E | 相機焦點：女2 骨盆 |
-| 滾輪 | 動畫 LOOP 速度 ±0.05f |
+| Z | 切換相機 Look 模式（`CameraData.Look`） |
+| M | 切換地圖顯示（`Manager.Config.GraphicData.Map`） |
+| F | 未知（HScene.cs:4134） |
+| L | 未知（HScene.cs:4146） |
+| Space | 未知（HScene.cs:4150） |
+| 滾輪 | Loop/OLoop 期間動畫速度 ±0.05f；OLoop 期間同時切換 Finish 選項 |
+| Home / End | 相機縮放（`CamDat.Dir.z`，**不受 ZoomCondition 影響**，H-scene 可用） |
 | F1 | 設定視窗 |
 | F2 | 快捷鍵一覽對話框 |
 | F3 | 教學（若啟用） |
+| F11 | 未知（HScene.cs:4154） |
 | 1 / 2 | 女1 眼神/頸部切換 |
 | Ctrl+1 / Ctrl+2 | 女2 眼神/頸部切換 |
 | Escape | 離開對話框 |
 
-以上之外的按鍵組合，遊戲均未使用，可安全作為外掛新增熱鍵。
+**確認空白**（外掛可安全使用）：A, B, C, D, G, H, I, J, K, N, O, P, R, S, T, U, V, X, Y 以及所有 Ctrl+Shift+字母 組合。
 
-### 一鍵高潮：與遊戲原生 Finish 按鈕的關係
+### 高潮觸發：遊戲的三條路徑
 
-遊戲右下角確實有一個 **Finish 類別選單**（`HSceneSpriteFinishCategory`），提供 FinishBefore / InSide / OutSide / Same / Drink / Vomit 六種選項。但它與外掛的觸發機制**完全不同**：
+遊戲完整狀態機（已確認）：
+```
+WLoop/SLoop (feel 0→0.75)
+    ↓ [feel_f >= 0.75，自動跳轉]
+OLoop/D_OLoop (feel 0.75→1.0)  ← Finish 選單此時可見，滾輪切換選項
+    ↓ 兩條路：
+    Path A) selectAnimationListInfo == null AND feel_f >= 1.0 → 【自動觸發】預設動畫
+    Path B) 玩家按 Finish 按鈕 (ctrlFlag.click = ClickKind.FinishXxx) → 特定動畫
+```
 
-| | 遊戲 Finish 按鈕 | 外掛 ExciterTriggerPatches |
-|--|----------------|---------------------------|
-| 觸發條件 | 玩家點擊 UI 按鈕 | 感度 ≥ 1.0 時左鍵點擊 |
-| 程式碼路徑 | 設定 `ctrlFlag.click = ClickKind.FinishXxx`，play 特定動畫 | IL Transpiler 替換 `feel_f` 讀取，回傳 `true` |
-| feel_f 限制 | FinishBefore 設 0.75、FinishInSide 設 0.5，**不要求 feel_f = 1.0** | 需 `feel_f >= 1.0` 才生效 |
-| 功能重疊 | 無（不同路徑） | 無（不同路徑） |
+| 路徑 | 觸發條件 | 播放動畫 | 尊重 Finish 選項 |
+|------|---------|---------|----------------|
+| **Path A 自動** | `selectAnimationListInfo==null` AND `feel_f≥1.0` | Orgasm / D_Orgasm / OrgasmF_IN（硬編碼） | ❌ |
+| **Path B Finish 按鈕** | `ctrlFlag.click = ClickKind.FinishXxx` | Inside/Outside/Drink/Same 等 6 種 | ✅ |
+| **ExciterTriggerPatches 左鍵** | `feel_f≥1.0` 時左鍵點擊 | Orgasm / D_Orgasm（走 Path A） | ❌ 繞過選項 |
 
-**結論**：兩者不是同一功能，外掛的觸發是額外新增的機制。
+**Orbit 設計鏈**：`ApplyOrbitAutoAction` 設 `isAutoActionChange=true` → `TryAutoAdvancePastCheckpoint` 呼叫 `GetAutoAnimation` 設定 `selectAnimationListInfo` → 封鎖 Path A → 等玩家按 Finish 按鈕選擇類型。
 
-**然而仍有兩個問題**：
-1. **點擊衝突**：玩家點擊 Finish UI 按鈕時，外掛的 `GetMouseButtonDown(0)` 也會同時觸發，若此時 `feel_f >= 1.0` 則兩套邏輯同幀作用
-2. **觸發鍵違反原則**：左鍵是 H-scene 最高頻互動鍵，應改為組合鍵
+**ExciterTriggerPatches 破壞此設計**：左鍵直接走 Path A，玩家失去選擇 Inside/Outside/Drink 的機會。需改為：觸發前先確認 `selectAnimationListInfo != null`（讓 Orbit 設計鏈先完成），或改走 Path B 設定 `ctrlFlag.click`。
 
-**新發現 — Finish 類別選單也用滾輪**：`HSceneSpriteFinishCategory`（lines 46–63）用滾輪在六個 Finish 選項間循環。這意味著 H-scene 中滾輪被**三個遊戲系統同時讀取**：速度調整、Finish 選項切換、外掛相機縮放。
+**觸發鍵衝突**：左鍵是 H-scene 最高頻互動鍵，應改為組合鍵（`Ctrl+左鍵` 或 `Ctrl+G`）。
+
+### 新增功能建議：Finish 類型鍵盤熱鍵
+
+確認 H-scene ShortcutKey() 完整鍵清單後，**T / Y / U / I / O / P 全部空白**，且緊接 Q/W/E 焦點鍵右側，形成完整的 6 鍵相鄰群組：
+
+| 按鍵 | Finish 類型 | `ctrlFlag.click` 值 | 播放動畫 |
+|------|------------|---------------------|---------|
+| T | FinishBefore | ClickKind.FinishBefore (0) | OLoop（重回高潮前循環） |
+| Y | FinishInSide | ClickKind.FinishInSide (1) | OrgasmM_IN |
+| U | FinishOutSide | ClickKind.FinishOutSide (2) | Orgasm_OUT |
+| I | FinishSame | ClickKind.FinishSame (3) | OrgasmS_IN |
+| O | FinishDrink | ClickKind.FinishDrink (4) | Orgasm_IN（吞嚥） |
+| P | FinishVomit | ClickKind.FinishVomit (5) | Orgasm_IN（吐出） |
+
+實作：`OrbitController.LateUpdate` 中偵測 `Input.GetKeyDown(KeyCode.T)` 等，條件為 `_hScene != null`，設定 `ctrlFlag.click = ClickKind.FinishXxx`。這走 Path B，與遊戲 Finish 按鈕等效，保留 Orbit 設計鏈意圖。
 
 ---
 
@@ -289,9 +317,9 @@ HS2 的滾輪在 H-scene 中**有兩個獨立功能**，需分開理解：
 | 優先 | 檔案 | 衝突輸入 | 問題 | 修改方式 |
 |------|------|---------|------|---------|
 | 🔴 P0 | OrbitController.cs | **Q / W / E** | 佔用遊戲原生相機焦點鍵，`SetDistanceForFocus()` 蓋掉 `CameraKeyCtrl` 結果 | 改為 `Ctrl+Q/W/E`；移除對 `GlobalMethod.CameraKeyCtrl()` 的呼叫 |
-| 🔴 P0 | OrbitController.cs | **滾輪** | 遊戲用滾輪控制動畫 LOOP 速度，外掛同幀讀取同一軸做相機縮放 | `ApplyOrbitScrollZoom()` 改為偵測 `Ctrl+滾輪`（`Input.GetKey(LeftCtrl) && ScrollWheel != 0`） |
-| 🔴 P0 | OrbitBypassWheelPatches.cs | **注入 wheel=0.10f** | bypass 假值同時被速度邏輯讀取，每次自動推進都意外拉高動畫速度 | bypass 機制改用不透過 wheel 軸的方式觸發（如直接呼叫 `GetAutoAnimation` 或透過 Reflection 設定 flag） |
-| 🔴 P0 | ExciterTriggerPatches.cs | **滑鼠左鍵** | H-scene 主要互動鍵；一鍵高潮為外掛新增功能（遊戲無此設計），但觸發鍵衝突 | 改為 `Ctrl+左鍵` 或 `Ctrl+G` 等未使用組合 |
+| 🔴 P0 | OrbitController.cs | **滾輪** | Loop/OLoop 期間遊戲用滾輪控速；Home/End 本就提供 H-scene 縮放（不受 ZoomCondition 影響，修改同一個 `CamDat.Dir.z`），外掛縮放功能冗餘 | **直接移除 `ApplyOrbitScrollZoom()`**；Home/End 繼續負責縮放，滾輪完整歸還遊戲 |
+| 🔴 P0 | OrbitBypassWheelPatches.cs | **注入 wheel=0.10f** | bypass 假值同時被速度邏輯讀取，每次自動推進都意外拉高動畫速度；閘門在 proc 入口（feel≈0 的狀態轉換），與高潮觸發無關 | bypass 機制改用不透過 wheel 軸的方式觸發（如直接呼叫 `GetAutoAnimation` 或透過 Reflection 設定 flag） |
+| 🔴 P0 | ExciterTriggerPatches.cs | **滑鼠左鍵** | 左鍵走 Path A 直接觸發，繞過 Orbit 設計鏈中的 `selectAnimationListInfo` 設定，玩家失去選擇 Finish 類型的機會 | 改為 `Ctrl+左鍵`；或重構為設定 `ctrlFlag.click`（走 Path B），保留 Finish 選項選擇 |
 
 ### 程式邏輯問題
 

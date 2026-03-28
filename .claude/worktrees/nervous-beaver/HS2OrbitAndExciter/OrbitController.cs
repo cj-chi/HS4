@@ -22,13 +22,18 @@ namespace HS2OrbitAndExciter
 
         private static readonly float[] AnglePresets = { 0f, 45f, 90f, 135f, 180f };
 
-        /// <summary>When true, game gives camera to player; when false, orbit keeps control. Use mouse only — Q/W/E use GetKeyDown in vanilla and must not hold NoCtrl true across frames (breaks focus hotkeys + camera proc ordering).</summary>
+        /// <summary>True when user is holding any mouse button (used to pause orbit and yield to game camera).</summary>
         private static bool IsUserControllingCamera()
         {
             return Input.GetMouseButton(0) || Input.GetMouseButton(1) || Input.GetMouseButton(2);
         }
 
-        private static readonly BaseCameraControl_Ver2.NoCtrlFunc NoCtrlOrbit = () => IsUserControllingCamera();
+        /// <summary>
+        /// NoCtrlCondition semantics: true = BLOCK mouse input (InputMouseProc skipped), false = ALLOW mouse input.
+        /// During orbit: block mouse when user is NOT pressing any button (orbit controls camera);
+        /// allow mouse when user IS pressing a button (game processes drag/pan/zoom).
+        /// </summary>
+        private static readonly BaseCameraControl_Ver2.NoCtrlFunc NoCtrlOrbit = () => !IsUserControllingCamera();
 
         private const float HotkeyCooldownSeconds = 0.25f;
         /// <summary>When choosing orbit focus option, prefer the game's default camera (option==maxFocus) to reduce distance surprises.</summary>
@@ -39,6 +44,8 @@ namespace HS2OrbitAndExciter
         private static bool _orbitActiveForPatches;
         private BaseCameraControl_Ver2.NoCtrlFunc? _savedNoCtrlCondition;
         private float _lastHotkeyTime = -999f;
+        /// <summary>True when user held a mouse button last frame; used to resync orbit angle on release.</summary>
+        private bool _wasUserControlling;
 
         // #region agent log
         private static void DebugLog(string location, string message, string dataJson, string hypothesisId)
@@ -90,6 +97,7 @@ namespace HS2OrbitAndExciter
         private static bool _requestViewReapplyNextFrame;
 
         private static FieldInfo _feelFField;
+        private static FieldInfo? _modeCtrlField;
         /// <summary>Seconds spent at checkpoint (Idle, no selection) while orbit is on; reset when we advance or leave checkpoint.</summary>
         private float _checkpointIdleTime;
         private static MethodInfo? _getAutoAnimationMethod;
@@ -414,19 +422,20 @@ namespace HS2OrbitAndExciter
 
         private void LateUpdate()
         {
+            var hScene = GetHScene();
+            if (hScene != null)
+                ApplyFinishHotkeys(hScene);
+
             if (!_orbitActive)
             {
                 _requestViewReapplyNextFrame = false;
                 return;
             }
 
-            var hScene = GetHScene();
             if (hScene == null) return;
 
             var ctrl = hScene.ctrlFlag?.cameraCtrl as CameraControl_Ver2;
             if (ctrl == null) return;
-
-            ApplyOrbitScrollZoom(ctrl);
 
             ApplyOrbitFocusHotkeys(hScene, ctrl);
 
@@ -450,6 +459,25 @@ namespace HS2OrbitAndExciter
 
             // Re-apply camera takeover every frame (e.g. after ChangeAnimation sets camera flag)
             ctrl.NoCtrlCondition = NoCtrlOrbit;
+
+            // --- Mouse-held pause: when user holds any mouse button, skip ALL camera writes so vanilla mouse behaviour works identically ---
+            bool userControlling = IsUserControllingCamera();
+            if (userControlling)
+            {
+                _wasUserControlling = true;
+                // Still track pose changes so we don't miss them
+                _lastNowAnimationInfoRef = hScene.ctrlFlag?.nowAnimationInfo;
+                return; // let the game handle camera entirely this frame
+            }
+            if (_wasUserControlling)
+            {
+                // User just released mouse — resync orbit start angle to where the camera is now so orbit continues seamlessly
+                _wasUserControlling = false;
+                float currentY = ((ctrl.CameraAngle.y % 360f) + 360f) % 360f;
+                _startOrbitY = currentY;
+                _orbitAccumulatedDegrees = 0f;
+                _orbitPhase = 0;
+            }
 
             // When pose changes (plugin or game), reapply current view so character stays in frame
             var nowInfo = hScene.ctrlFlag?.nowAnimationInfo;
@@ -539,7 +567,8 @@ namespace HS2OrbitAndExciter
             if (chaFemales == null || chaFemales.Length == 0)
                 return;
 
-            GlobalMethod.CameraKeyCtrl(ctrl, chaFemales);
+            bool ctrl2 = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            if (!ctrl2) return;
 
             bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             int maxFocus = OrbitHelpers.GetMaxFocusIndex(chaFemales);
@@ -571,17 +600,39 @@ namespace HS2OrbitAndExciter
             // #endregion
         }
 
-        /// <summary>H-scene camera sets ZoomCondition to always false, so wheel never runs; mirror InputMouseWheelZoomProc while orbit is on.</summary>
-        private static void ApplyOrbitScrollZoom(CameraControl_Ver2 ctrl)
+        /// <summary>
+        /// Scene-aware Finish hotkeys (Path B: ctrlFlag.click). Keys mapped from P backwards by universality:
+        /// P=FinishBefore(all), O=FinishInSide(H+S), I=FinishVomit(S), U=FinishOutSide(S3), Y=FinishSame(H2), T=FinishDrink(H2).
+        /// Availability per modeCtrl from MultiPlay_F2M1.SetFinishCategoryEnable.
+        /// </summary>
+        private static void ApplyFinishHotkeys(HScene hScene)
         {
-            float num = Input.GetAxis("Mouse ScrollWheel") * ctrl.zoomSpeed;
-            if (Mathf.Approximately(num, 0f)) return;
-            var dir = ctrl.CameraDir;
-            dir.z += num;
-            dir.z = Mathf.Min(0f, dir.z);
-            if (ctrl.isLimitDir)
-                dir.z = Mathf.Clamp(dir.z, -ctrl.limitDir, 0f);
-            ctrl.CameraDir = dir;
+            var ctrlFlag = hScene.ctrlFlag;
+            if (ctrlFlag == null || ctrlFlag.inputForcus) return;
+
+            // Get current modeCtrl via reflection (private field on HScene)
+            if (_modeCtrlField == null)
+                _modeCtrlField = typeof(HScene).GetField("modeCtrl", BindingFlags.NonPublic | BindingFlags.Instance);
+            int mode = _modeCtrlField != null ? (int)_modeCtrlField.GetValue(hScene) : -1;
+            if (mode < 0) return;
+
+            // Map keys to ClickKind, filtered by scene availability
+            HSceneFlagCtrl.ClickKind kind;
+            if (Input.GetKeyDown(KeyCode.P))
+                kind = HSceneFlagCtrl.ClickKind.FinishBefore;           // all modes
+            else if (Input.GetKeyDown(KeyCode.O) && mode != 0)
+                kind = HSceneFlagCtrl.ClickKind.FinishInSide;           // modeCtrl != 0
+            else if (Input.GetKeyDown(KeyCode.I) && (mode == 3 || mode == 4))
+                kind = HSceneFlagCtrl.ClickKind.FinishVomit;            // Sonyu (3,4)
+            else if (Input.GetKeyDown(KeyCode.U) && mode == 3)
+                kind = HSceneFlagCtrl.ClickKind.FinishOutSide;          // Sonyu sub-mode 3
+            else if (Input.GetKeyDown(KeyCode.Y) && mode == 2)
+                kind = HSceneFlagCtrl.ClickKind.FinishSame;             // Houshi sub-mode 2
+            else if (Input.GetKeyDown(KeyCode.T) && mode == 2)
+                kind = HSceneFlagCtrl.ClickKind.FinishDrink;            // Houshi sub-mode 2
+            else return;
+
+            ctrlFlag.click = kind;
         }
 
         /// <summary>Apply current view option: body focus (GetFocusPosition + SetDistanceForFocus) or pose default camera (setCameraLoad).</summary>

@@ -17,7 +17,8 @@ namespace HS2OrbitAndExciter.Patches
 
         public static bool ShouldTriggerOrgasmNow()
         {
-            if (Input.GetMouseButtonDown(0))
+            bool ctrlHeld = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            if (Input.GetMouseButtonDown(0) && ctrlHeld)
             {
                 if (_consumed) return false;
                 _consumed = true;

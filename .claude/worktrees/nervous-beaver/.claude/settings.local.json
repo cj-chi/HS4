@@ -9,7 +9,8 @@
       "Bash(grep -rn \"lstButton\\\\[.*\\\\].*onClick\\\\|button.*onClick\\\\|OnClick.*Finish\" /d/HS4/.claude/worktrees/nervous-beaver/dll_decompiled/HScene*.cs)",
       "Bash(grep -rn \"ClickKind.FinishBefore\\\\|ClickKind.FinishOutSide\" /d/HS4/.claude/worktrees/nervous-beaver/dll_decompiled/*.cs)",
       "Bash(grep -rn ClickKind.FinishInSide /d/HS4/.claude/worktrees/nervous-beaver/dll_decompiled/*.cs)",
-      "Bash(grep -rn ClickKind.FinishSame /d/HS4/.claude/worktrees/nervous-beaver/dll_decompiled/*.cs)"
+      "Bash(grep -rn ClickKind.FinishSame /d/HS4/.claude/worktrees/nervous-beaver/dll_decompiled/*.cs)",
+      "Bash(dotnet build:*)"
     ]
   }
 }
