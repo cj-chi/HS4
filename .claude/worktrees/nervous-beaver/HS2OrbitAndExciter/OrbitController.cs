@@ -101,8 +101,6 @@ namespace HS2OrbitAndExciter
         /// <summary>Seconds spent at checkpoint (Idle, no selection) while orbit is on; reset when we advance or leave checkpoint.</summary>
         private float _checkpointIdleTime;
         private static MethodInfo? _getAutoAnimationMethod;
-        private static FieldInfo? _isAutoActionChangeField;
-        private static PropertyInfo? _isAutoActionChangeProp;
         /// <summary>When orbit started in preparation (Idle + speed 0): wait this many seconds then set speed=1 to start; excitement only accumulates after start.</summary>
         private bool _waitingForPrepStart;
         private float _prepCountdownStart;
@@ -239,32 +237,6 @@ namespace HS2OrbitAndExciter
                 speed = Mathf.Clamp(speed + OrbitSpeedAddPerSecond * Time.deltaTime, 0f, 2f);
                 speedField.SetValue(speed);
             }
-        }
-
-        /// <summary>
-        /// Legacy: used to set isAutoActionChange=true and initiative=1 every frame.
-        /// REMOVED: setting initiative=1 forces Auto mode which gates scroll wheel behind a timer;
-        /// setting isAutoActionChange=true causes game to hide motion list (SetMotionListDraw(false)).
-        /// Auto-advance is now handled solely by TryAutoAdvancePastCheckpoint which directly calls
-        /// GetAutoAnimation after a timeout, without forcing Auto mode or hiding UI.
-        /// </summary>
-        private void ApplyOrbitAutoAction(HScene hScene)
-        {
-            bool enabled = HS2OrbitAndExciter.OrbitAutoActionEnabled?.Value == true;
-            if (!enabled) return;
-            // Ensure reflection for isAutoActionChange is initialized (used by RunLateHSceneAssist mouse-clear)
-            if (_isAutoActionChangeField == null && _isAutoActionChangeProp == null)
-            {
-                var ctrlFlag = hScene.ctrlFlag;
-                if (ctrlFlag != null)
-                {
-                    var flagType = ctrlFlag.GetType();
-                    _isAutoActionChangeField = flagType.GetField("isAutoActionChange", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (_isAutoActionChangeField == null)
-                        _isAutoActionChangeProp = flagType.GetProperty("isAutoActionChange", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                }
-            }
-            // No longer set isAutoActionChange or initiative; TryAutoAdvancePastCheckpoint handles auto-advance.
         }
 
         /// <summary>When orbit is on and stuck at checkpoint (Idle, no selection) for OrbitCheckpointTimeoutSeconds, call HScene.GetAutoAnimation to advance.</summary>
@@ -520,9 +492,11 @@ namespace HS2OrbitAndExciter
             ctrl.Rot = rot;
         }
 
-        /// <summary>Minimum camera distance in body-height units (legacy configs often had 0.3; too tight for full-body framing).</summary>
+        /// <summary>Minimum camera distance multiplier in body-height units.</summary>
         private const float OrbitDistanceMultMin = 1.35f;
         private const float OrbitDistanceMultMax = 3f;
+        /// <summary>Absolute minimum camera distance regardless of body height calculation.</summary>
+        private const float OrbitDistanceAbsoluteMin = 1.5f;
 
         /// <summary>Set camera distance = body height × config multiplier for this focus. Call after setting TargetPos.</summary>
         private static void SetDistanceForFocus(CameraControl_Ver2 ctrl, ChaControl[]? chaFemales, int focusIndex)
@@ -539,7 +513,7 @@ namespace HS2OrbitAndExciter
                 mult = OrbitDistanceMultMin;
             mult = Mathf.Clamp(mult, OrbitDistanceMultMin, OrbitDistanceMultMax);
             float d = bodyHeight * mult;
-            d = Mathf.Clamp(d, OrbitDistanceMultMin * bodyHeight, OrbitDistanceMultMax * bodyHeight);
+            d = Mathf.Max(d, OrbitDistanceAbsoluteMin);
             ctrl.CameraDir = new Vector3(0f, 0f, -d);
         }
 
@@ -765,7 +739,7 @@ namespace HS2OrbitAndExciter
                 if (_savedNoCtrlCondition != null && _savedNoCtrlCondition != NoCtrlOrbit)
                     ctrl.NoCtrlCondition = _savedNoCtrlCondition;
                 else
-                    ctrl.NoCtrlCondition = () => true; // ensure player gets control back if we had no valid saved
+                    ctrl.NoCtrlCondition = null; // null = game default (allow all mouse input)
             }
         }
 
@@ -789,7 +763,6 @@ namespace HS2OrbitAndExciter
                 _checkpointIdleTime = 0f;
                 return;
             }
-            ApplyOrbitAutoAction(hScene);
             DebugOrbitIdlePass(hScene);
             TryAutoAdvancePastCheckpoint(hScene);
         }

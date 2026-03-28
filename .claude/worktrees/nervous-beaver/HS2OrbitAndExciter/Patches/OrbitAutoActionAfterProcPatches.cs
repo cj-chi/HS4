@@ -4,9 +4,11 @@ using UnityEngine;
 namespace HS2OrbitAndExciter.Patches
 {
     /// <summary>
-    /// After each H scene Proc (Aibu/Sonyu/etc.) runs in Update, re-apply isAutoActionChange and initiative
-    /// so the game's subsequent check (isAutoActionChange && selectAnimationListInfo == null) sees true
-    /// and calls GetAutoAnimation. Without this, Proc overwrites our LateUpdate-set values before the check.
+    /// Previously set isAutoActionChange=true and initiative=1 after each Proc.
+    /// REMOVED: initiative=1 forces Auto mode (gates scroll wheel behind timer);
+    /// isAutoActionChange=true causes game to hide motion list.
+    /// Auto-advance is now handled by TryAutoAdvancePastCheckpoint in OrbitController.
+    /// Patch kept as placeholder to avoid Harmony unpatch issues; body is intentionally empty.
     /// </summary>
     [HarmonyPatch(typeof(ProcBase), nameof(ProcBase.Proc))]
     public static class OrbitAutoActionAfterProcPatches
@@ -14,13 +16,7 @@ namespace HS2OrbitAndExciter.Patches
         [HarmonyPostfix]
         public static void Postfix(ProcBase __instance)
         {
-            if (__instance == null) return;
-            if (!OrbitController.IsOrbitActive()) return;
-            if (HS2OrbitAndExciter.OrbitAutoActionEnabled?.Value != true) return;
-            var ctrlFlag = Traverse.Create(__instance).Field("ctrlFlag").GetValue() as HSceneFlagCtrl;
-            if (ctrlFlag == null) return;
-            ctrlFlag.isAutoActionChange = true;
-            ctrlFlag.initiative = 1;
+            // Intentionally empty — see class summary.
         }
     }
 }

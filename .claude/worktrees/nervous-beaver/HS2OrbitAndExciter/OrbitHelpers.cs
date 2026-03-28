@@ -59,17 +59,17 @@ namespace HS2OrbitAndExciter
             return transBase.InverseTransformPoint(worldPos.Value);
         }
 
-        /// <summary>Full body height in world units (head to foot). Uses first female; fallback 1.6f if bones missing.</summary>
+        /// <summary>Full body length in world units (head to foot, 3D distance). Uses Vector3.Distance so lying/sitting poses don't collapse to near-zero. Fallback 1.6f if bones missing.</summary>
         public static float GetBodyHeight(ChaControl[]? chaFemales, int femaleIndex = 0)
         {
             if (chaFemales == null || femaleIndex < 0 || femaleIndex >= chaFemales.Length) return 1.6f;
             var head = GetBonePosition(chaFemales, femaleIndex, BoneHead);
             var foot = GetBonePosition(chaFemales, femaleIndex, BoneFootL);
             if (head.HasValue && foot.HasValue)
-                return Mathf.Max(0.5f, head.Value.y - foot.Value.y);
+                return Mathf.Max(0.8f, Vector3.Distance(head.Value, foot.Value));
             var pelvis = GetBonePosition(chaFemales, femaleIndex, BonePelvis);
             if (head.HasValue && pelvis.HasValue)
-                return Mathf.Max(0.5f, (head.Value.y - pelvis.Value.y) * 2.2f);
+                return Mathf.Max(0.8f, Vector3.Distance(head.Value, pelvis.Value) * 2.2f);
             return 1.6f;
         }
 
