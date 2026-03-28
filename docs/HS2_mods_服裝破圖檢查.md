@@ -91,7 +91,21 @@
 
 ---
 
-## 5. 總結
+## 5. （可選）關閉畫面上的 Missing zipmod 提示
+
+若缺 mod 的**螢幕浮字**對你無用，但仍希望在 **BepInEx 日誌**裡保留紀錄以便日後排查：
+
+- **檔案**：`D:\HS2\BepInEx\config\com.bepis.bepinex.sideloader.cfg`  
+- **區段**：`[Logging]`  
+- **設定**：`Show missing mod warnings = false`（預設為 `true`）  
+- **效果**：Sideloader **不再在遊戲畫面**顯示 `Missing zipmod!` 類提示；訊息仍會寫入 log。  
+- **套用**：存檔後**完全關閉遊戲再啟動**。
+
+**紀錄（本機已套用，2026-03-28）**：上述設定已改為 `false`（僅影響 `D:\HS2`，不進 HS4 倉庫）。
+
+---
+
+## 6. 總結
 
 - **HS4 不會改 D:\HS2\mods**；「本來都好」若變缺失，請在 **D:\HS2** 檢查：主 mod 目錄、Sideloader 額外目錄、快取、以及缺失 ID 是否真的在 mods 裡。  
 - 修復方向：補齊 mod 檔案，或改動 Sideloader 設定／還原 mods 內容，或讓角色改穿已安裝的服裝。
