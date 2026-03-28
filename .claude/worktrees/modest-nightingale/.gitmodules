@@ -1,0 +1,9 @@
+[submodule "Face2Parameter"]
+	path = Face2Parameter
+	url = https://github.com/ChasonJiang/Face2Parameter.git
+[submodule "HS2CharEdit"]
+	path = HS2CharEdit
+	url = https://github.com/CttCJim/HS2CharEdit.git
+[submodule "HS2CharEdit-Copy"]
+	path = HS2CharEdit - Copy
+	url = https://github.com/CttCJim/HS2CharEdit.git

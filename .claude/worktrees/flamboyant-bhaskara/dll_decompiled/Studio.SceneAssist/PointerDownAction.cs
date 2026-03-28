@@ -1,0 +1,19 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.Events;
+
+namespace Studio.SceneAssist;
+
+public class PointerDownAction : MonoBehaviour, IPointerDownHandler, IEventSystemHandler
+{
+	public List<UnityAction> listAction = new List<UnityAction>();
+
+	public void OnPointerDown(PointerEventData eventData)
+	{
+		foreach (UnityAction item in listAction)
+		{
+			item();
+		}
+	}
+}

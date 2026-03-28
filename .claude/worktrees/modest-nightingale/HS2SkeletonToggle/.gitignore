@@ -1,0 +1,5 @@
+bin/
+obj/
+refs/*.dll
+*.user
+.vs/

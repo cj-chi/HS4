@@ -1,0 +1,12 @@
+Stage 0: Resource verification report
+
+0.1 PNG (AI_191856.png)
+  Result: Valid HS2 character card.
+  Note: This installation uses trailing binary data after PNG IEND (25067 bytes), not tEXt chara/ccv3 chunks. Same file exists at D:\HS2\UserData\chara\female\AI_191856.png.
+
+0.2 Beauty images (jfif)
+  1 (1).jfif: OK, size 784x1168, RGB
+  1 (2).jfif: OK, size 784x1168, RGB
+  1 (3).jfif: OK, size 784x1168, RGB
+
+Conclusion: PoC can proceed. Use any one image + AI_191856.png for the proof-of-concept.

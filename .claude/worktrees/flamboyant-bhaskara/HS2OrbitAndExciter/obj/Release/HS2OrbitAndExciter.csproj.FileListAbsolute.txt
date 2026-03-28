@@ -1,0 +1,17 @@
+d:\HS4\HS2OrbitAndExciter\bin\Release\HS2OrbitAndExciter.dll
+d:\HS4\HS2OrbitAndExciter\bin\Release\HS2OrbitAndExciter.pdb
+d:\HS4\HS2OrbitAndExciter\bin\Release\Assembly-CSharp.dll
+d:\HS4\HS2OrbitAndExciter\bin\Release\IL.dll
+d:\HS4\HS2OrbitAndExciter\bin\Release\UnityEngine.CoreModule.dll
+d:\HS4\HS2OrbitAndExciter\bin\Release\UnityEngine.dll
+d:\HS4\HS2OrbitAndExciter\bin\Release\UnityEngine.IMGUIModule.dll
+d:\HS4\HS2OrbitAndExciter\obj\Release\HS2OrbitAndExciter.csproj.AssemblyReference.cache
+d:\HS4\HS2OrbitAndExciter\obj\Release\MyPluginInfo.cs
+d:\HS4\HS2OrbitAndExciter\obj\Release\HS2OrbitAndExciter.GeneratedMSBuildEditorConfig.editorconfig
+d:\HS4\HS2OrbitAndExciter\obj\Release\HS2OrbitAndExciter.AssemblyInfoInputs.cache
+d:\HS4\HS2OrbitAndExciter\obj\Release\HS2OrbitAndExciter.AssemblyInfo.cs
+d:\HS4\HS2OrbitAndExciter\obj\Release\HS2OrbitAndExciter.csproj.CoreCompileInputs.cache
+d:\HS4\HS2OrbitAndExciter\obj\Release\HS2OrbitAndExciter.sourcelink.json
+d:\HS4\HS2OrbitAndExciter\obj\Release\HS2Orbit.C58DD4E2.Up2Date
+d:\HS4\HS2OrbitAndExciter\obj\Release\HS2OrbitAndExciter.dll
+d:\HS4\HS2OrbitAndExciter\obj\Release\HS2OrbitAndExciter.pdb

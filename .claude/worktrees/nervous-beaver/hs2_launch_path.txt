@@ -1,0 +1,4 @@
+# HS2 執行檔路徑：下面一行填 exe 絕對路徑（# 開頭為註解）
+# run_onedim_face / run_optuna_face 未加 --launch-game 時會用此路徑自動啟動 HS2
+# 請改成你的實際路徑，例如 D:\HS2\HoneySelect2.exe
+D:\HS2\HoneySelect2.exe

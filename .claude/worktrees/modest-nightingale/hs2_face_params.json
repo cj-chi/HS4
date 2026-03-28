@@ -1,0 +1,10 @@
+{
+  "source": "AI_191856.png",
+  "file_size": 165828,
+  "trailing_offset": 140761,
+  "trailing_bytes": 25067,
+  "trailing_first_4_bytes_hex": "64000000",
+  "face_params_note": "ChaFile is binary (AIS_Chara). Face slider values require full parse (e.g. IllusionModdingAPI/HS2CharEdit). This output provides trailing data size and header for PoC.",
+  "first_uint32_le": 100,
+  "first_uint16_le": 100
+}

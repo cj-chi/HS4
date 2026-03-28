@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /d D:HS4)",
+      "Bash(find . -name *.cs -type f)",
+      "Bash(xargs grep:*)",
+      "Bash(find D:HS4 -name *.cs -type f)",
+      "Bash(grep -n \"categoryFinish.*OnClick\\\\|categoryFinish.*GetlstActive\\\\|categoryFinish.*ActiveID\\\\|OnClickFinish\" /d/HS4/.claude/worktrees/nervous-beaver/dll_decompiled/*.cs)",
+      "Bash(grep -rn \"lstButton\\\\[.*\\\\].*onClick\\\\|button.*onClick\\\\|OnClick.*Finish\" /d/HS4/.claude/worktrees/nervous-beaver/dll_decompiled/HScene*.cs)",
+      "Bash(grep -rn \"ClickKind.FinishBefore\\\\|ClickKind.FinishOutSide\" /d/HS4/.claude/worktrees/nervous-beaver/dll_decompiled/*.cs)",
+      "Bash(grep -rn ClickKind.FinishInSide /d/HS4/.claude/worktrees/nervous-beaver/dll_decompiled/*.cs)",
+      "Bash(grep -rn ClickKind.FinishSame /d/HS4/.claude/worktrees/nervous-beaver/dll_decompiled/*.cs)"
+    ]
+  }
+}

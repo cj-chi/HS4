@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>HS2.PhotoToCard</AssemblyName>
+    <RootNamespace>HS2.PhotoToCard.Plugin</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <HS2Managed Condition="'$(HS2Managed)' == ''">D:\hs2\HoneySelect2_Data\Managed</HS2Managed>
+    <HS2BepInEx Condition="'$(HS2BepInEx)' == ''">D:\hs2\BepInEx</HS2BepInEx>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Soft dependency on SkeletonToggle for bone points visibility control -->
+    <Reference Include="HS2SkeletonToggle" Condition="Exists('$(HS2BepInEx)\plugins\HS2SkeletonToggle.dll')">
+      <HintPath>$(HS2BepInEx)\plugins\HS2SkeletonToggle.dll</HintPath>
+    </Reference>
+    <Reference Include="HS2SkeletonToggle" Condition="!Exists('$(HS2BepInEx)\plugins\HS2SkeletonToggle.dll') and Exists('..\HS2SkeletonToggle\bin\Debug\HS2SkeletonToggle.dll')">
+      <HintPath>..\HS2SkeletonToggle\bin\Debug\HS2SkeletonToggle.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup Condition="Exists('$(HS2Managed)\Assembly-CSharp.dll')">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(HS2Managed)\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(HS2Managed)\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(HS2Managed)\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>$(HS2Managed)\UnityEngine.ScreenCaptureModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(HS2Managed)\UnityEngine.IMGUIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="IL">
+      <HintPath>$(HS2Managed)\IL.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup Condition="!Exists('$(HS2Managed)\Assembly-CSharp.dll') and Exists('refs\Assembly-CSharp.dll')">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>refs\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>refs\UnityEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>refs\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>refs\UnityEngine.ScreenCaptureModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>refs\UnityEngine.IMGUIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="IL">
+      <HintPath>refs\IL.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <Target Name="CheckGameRefs" BeforeTargets="CoreCompile">
+    <Error Condition="!Exists('$(HS2Managed)\Assembly-CSharp.dll') and !Exists('refs\Assembly-CSharp.dll')"
+           Text="HS2 game refs missing. Set HS2Managed to your game's HoneySelect2_Data\Managed (e.g. dotnet build -p:HS2Managed=D:\HS2\HoneySelect2_Data\Managed) or copy Assembly-CSharp.dll, UnityEngine.dll, UnityEngine.CoreModule.dll, UnityEngine.IMGUIModule.dll into BepInEx_HS2_PhotoToCard\refs\" />
+  </Target>
+  <Target Name="CopyToHS2" AfterTargets="Build" Condition="Exists('$(HS2BepInEx)\plugins')">
+    <Copy SourceFiles="$(OutputPath)HS2.PhotoToCard.dll" DestinationFolder="$(HS2BepInEx)\plugins" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Copied HS2.PhotoToCard.dll to $(HS2BepInEx)\plugins" />
+  </Target>
+</Project>

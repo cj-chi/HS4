@@ -1,0 +1,4 @@
+# 精簡依賴：不含 mediapipe，安裝快。跑 PoC 時加 --mock-face 即可產卡。
+Pillow>=9.0.0
+numpy>=1.21.0
+msgpack>=1.0.0

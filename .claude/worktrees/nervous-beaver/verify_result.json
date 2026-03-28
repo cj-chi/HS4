@@ -1,0 +1,32 @@
+{
+  "png": {
+    "ok": true,
+    "format": "trailing_after_iend",
+    "trailing_bytes": 25067,
+    "message": "HS2 character card (trailing data after IEND)"
+  },
+  "1 (1).jfif": {
+    "ok": true,
+    "size": [
+      784,
+      1168
+    ],
+    "mode": "RGB"
+  },
+  "1 (2).jfif": {
+    "ok": true,
+    "size": [
+      784,
+      1168
+    ],
+    "mode": "RGB"
+  },
+  "1 (3).jfif": {
+    "ok": true,
+    "size": [
+      784,
+      1168
+    ],
+    "mode": "RGB"
+  }
+}

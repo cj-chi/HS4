@@ -1,0 +1,18 @@
+using UnityEngine.EventSystems;
+
+namespace UnityEx;
+
+public class PointerDownTrigger : UITrigger, IPointerDownHandler, IEventSystemHandler
+{
+	public void OnPointerDown(PointerEventData eventData)
+	{
+		if (!base.isActiveAndEnabled || !IsInteractable())
+		{
+			return;
+		}
+		foreach (TriggerEvent trigger in base.Triggers)
+		{
+			trigger.Invoke(eventData);
+		}
+	}
+}

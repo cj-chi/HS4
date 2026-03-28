@@ -1,0 +1,175 @@
+{
+  "description": "Map face ratios to HS2 sliders (one ratio per slider). Use calibration.ratio_min/ratio_max when set. See docs/17_ratio_to_hs2_slider_對照.md.",
+  "ratios": {
+    "eye_span_to_face_width": {
+      "slider": "eye_span",
+      "scale": 100,
+      "offset": 0
+    },
+    "eye_vertical_to_face_height": {
+      "slider": "eye_vertical",
+      "scale": 100,
+      "offset": 0
+    },
+    "mouth_width_to_face_width": {
+      "slider": "mouth_width",
+      "scale": 100,
+      "offset": 0
+    },
+    "nose_width_to_face_width": {
+      "slider": "nose_width",
+      "scale": 100,
+      "offset": 0
+    },
+    "eye_size_ratio": {
+      "slider": "eye_size",
+      "scale": 100,
+      "offset": 0
+    },
+    "nose_height_to_face_height": {
+      "slider": "nose_height",
+      "scale": 100,
+      "offset": 0
+    },
+    "mouth_height_to_face_height": {
+      "slider": "mouth_height",
+      "scale": 100,
+      "offset": 0
+    },
+    "head_width_to_face_height": {
+      "slider": "head_width",
+      "scale": 100,
+      "offset": 0
+    },
+    "lip_thickness_to_mouth_width": {
+      "slider": "lip_thickness",
+      "scale": 100,
+      "offset": 0
+    },
+    "jaw_width_to_face_width": {
+      "slider": "jaw_width",
+      "scale": 100,
+      "offset": 0
+    },
+    "chin_to_mouth_face_height": {
+      "slider": "chin_height",
+      "scale": 100,
+      "offset": 0
+    },
+    "eye_angle_z_ratio": {
+      "slider": "eye_angle_z",
+      "scale": 100,
+      "offset": 0
+    },
+    "nose_bridge_position_ratio": {
+      "slider": "bridge_height",
+      "scale": 100,
+      "offset": 0
+    },
+    "upper_lip_to_total_lip_ratio": {
+      "slider": "upper_lip_thick",
+      "scale": 100,
+      "offset": 0
+    },
+    "lower_lip_to_total_lip_ratio": {
+      "slider": "lower_lip_thick",
+      "scale": 100,
+      "offset": 0
+    },
+    "face_width_to_height_lower": {
+      "slider": "head_lower_width",
+      "scale": 100,
+      "offset": 0
+    }
+  },
+  "calibration": {
+    "eye_vertical": {
+      "ratio_name": "eye_vertical_to_face_height",
+      "ratio_min": 0.0,
+      "ratio_max": 1.3123909249563699
+    },
+    "eye_span": {
+      "ratio_name": "eye_span_to_face_width",
+      "ratio_min": 0.0,
+      "ratio_max": 1.0090984284532671
+    },
+    "mouth_width": {
+      "ratio_name": "mouth_width_to_face_width",
+      "ratio_min": 0.0,
+      "ratio_max": 0.5285738511107342
+    },
+    "nose_width": {
+      "ratio_name": "nose_width_to_face_width",
+      "ratio_min": 0.0,
+      "ratio_max": 0.7179398548219842
+    },
+    "eye_size": {
+      "ratio_name": "eye_size_ratio",
+      "ratio_min": 0.0,
+      "ratio_max": 1.3021211275467486
+    },
+    "nose_height": {
+      "ratio_name": "nose_height_to_face_height",
+      "ratio_min": 0.0,
+      "ratio_max": 1.140077821011673
+    },
+    "mouth_height": {
+      "ratio_name": "mouth_height_to_face_height",
+      "ratio_min": 0.0,
+      "ratio_max": 0.6925287356321841
+    },
+    "head_width": {
+      "ratio_name": "head_width_to_face_height",
+      "ratio_min": 0.0,
+      "ratio_max": 0.6618010885700149
+    },
+    "lip_thickness": {
+      "ratio_name": "lip_thickness_to_mouth_width",
+      "ratio_min": 0.0,
+      "ratio_max": 1.9787671232876713
+    },
+    "jaw_width": {
+      "ratio_name": "jaw_width_to_face_width",
+      "ratio_min": 0.0,
+      "ratio_max": 1.242603550295858
+    },
+    "chin_height": {
+      "ratio_name": "chin_to_mouth_face_height",
+      "ratio_min": 0.0,
+      "ratio_max": 0.552895503073439
+    },
+    "eye_angle_z": {
+      "ratio_name": "eye_angle_z_ratio",
+      "ratio_min": 0.0,
+      "ratio_max": 1.1331394047885432
+    },
+    "bridge_height": {
+      "ratio_name": "nose_bridge_position_ratio",
+      "ratio_min": 0.0,
+      "ratio_max": 1.1924614505996574
+    },
+    "upper_lip_thick": {
+      "ratio_name": "upper_lip_to_total_lip_ratio",
+      "ratio_min": 0.0,
+      "ratio_max": 0.6518151815181519
+    },
+    "lower_lip_thick": {
+      "ratio_name": "lower_lip_to_total_lip_ratio",
+      "ratio_min": 0.0,
+      "ratio_max": 1.0721235709073218
+    },
+    "head_lower_width": {
+      "ratio_name": "face_width_to_height_lower",
+      "ratio_min": 0.0,
+      "ratio_max": 0.6618010885700149
+    }
+  },
+  "default_clamp": [
+    0,
+    100
+  ],
+  "game_slider_range": [
+    -100,
+    200
+  ]
+}

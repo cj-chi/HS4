@@ -1,0 +1,26 @@
+namespace ADV.Commands.Base;
+
+public class Close : CommandBase
+{
+	public override string[] ArgsLabel => null;
+
+	public override string[] ArgsDefault => null;
+
+	public override void Do()
+	{
+		base.Do();
+		Proc();
+	}
+
+	private void Proc()
+	{
+		if (base.scenario.advScene != null)
+		{
+			base.scenario.advScene.Release();
+		}
+		else
+		{
+			base.scenario.gameObject.SetActive(value: false);
+		}
+	}
+}

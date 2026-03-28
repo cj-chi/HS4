@@ -1,0 +1,23 @@
+PoC validation log (Stage 3)
+
+Run date: 2026-02-23
+Assets: d:\HS4 (3 jfif + AI_191856.png); HS2: D:\HS2
+
+Stage 0:
+  PNG is HS2 card: True (trailing data after IEND, 25067 bytes)
+  JFIF readable: True (all 3 images 784x1168 RGB)
+
+Stage 1.1:
+  extract_face_ratios.py: OK (--mock used; install mediapipe for real ratios)
+
+Stage 1.2:
+  read_hs2_card.py: OK (trailing_bytes=25067, header AIS_Chara 1.0.0)
+
+Stage 2:
+  run_poc.py: OK
+  Mapped params (mock): eye_span=42, face_width_height=72, mouth_width=48, nose_width=22, eye_size=38
+
+Stage 3 (3 images):
+  All three runs completed with --mock-face. For real per-image params: run without --mock after pip install mediapipe numpy.
+
+In-game: Apply target_params.json "mapped_params" manually in HS2 or via plugin; compare with source image.
