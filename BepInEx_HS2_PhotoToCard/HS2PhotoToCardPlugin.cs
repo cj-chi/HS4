@@ -529,6 +529,93 @@ namespace HS2.PhotoToCard.Plugin
             return best;
         }
 
+        private static BoneNode FindBoneNodeByTransform(BoneNode root, Transform t)
+        {
+            if (root == null || t == null) return null;
+            if (root.Transform == t) return root;
+            for (int i = 0; i < root.Children.Count; i++)
+            {
+                var f = FindBoneNodeByTransform(root.Children[i], t);
+                if (f != null) return f;
+            }
+            return null;
+        }
+
+        private static bool TryBuildPathToTransform(BoneNode node, Transform t, List<BoneNode> path)
+        {
+            if (node == null || t == null) return false;
+            path.Add(node);
+            if (node.Transform == t) return true;
+            for (int i = 0; i < node.Children.Count; i++)
+            {
+                if (TryBuildPathToTransform(node.Children[i], t, path))
+                    return true;
+            }
+            path.RemoveAt(path.Count - 1);
+            return false;
+        }
+
+        private static void SetFoldoutOpenToNode(BoneNode root, BoneNode target)
+        {
+            if (root == null || target == null || target.Transform == null) return;
+            var path = new List<BoneNode>();
+            if (!TryBuildPathToTransform(root, target.Transform, path)) return;
+            for (int i = 0; i < path.Count - 1; i++)
+                path[i].Foldout = true;
+        }
+
+        private static void SetShowTrueSubtree(BoneNode node)
+        {
+            if (node == null) return;
+            node.Show = true;
+            for (int i = 0; i < node.Children.Count; i++)
+                SetShowTrueSubtree(node.Children[i]);
+        }
+
+        private static void CollectSubtreeBoneNodesPreOrder(BoneNode node, List<BoneNode> outList)
+        {
+            if (node == null) return;
+            outList.Add(node);
+            for (int i = 0; i < node.Children.Count; i++)
+                CollectSubtreeBoneNodesPreOrder(node.Children[i], outList);
+        }
+
+        private void ApplyStructurePick(BoneNode hit)
+        {
+            if (hit == null)
+            {
+                _structureAnchorNode = null;
+                return;
+            }
+            BoneNode pick = hit;
+            if (pick.Children.Count == 0 && pick.Transform != null && pick.Transform.parent != null)
+            {
+                BoneNode parentNode = FindBoneNodeByTransform(_boneRoot, pick.Transform.parent);
+                if (parentNode != null)
+                    pick = parentNode;
+            }
+            _structureAnchorNode = pick;
+            SetFoldoutOpenToNode(_boneRoot, pick);
+        }
+
+        private void IsolateAnchorSubtreeAndCopyNamesToClipboard()
+        {
+            if (_structureAnchorNode == null)
+            {
+                Logger.LogMessage("[PhotoToCard] 結構錨點為空：請先在「結構模式」下點選一個骨骼點，再按此鈕。");
+                return;
+            }
+            SetAllBoneShow(_boneRoot, false);
+            SetShowTrueSubtree(_structureAnchorNode);
+            var nodes = new List<BoneNode>();
+            CollectSubtreeBoneNodesPreOrder(_structureAnchorNode, nodes);
+            var lines = new string[nodes.Count];
+            for (int i = 0; i < nodes.Count; i++)
+                lines[i] = nodes[i].Name ?? "";
+            GUIUtility.systemCopyBuffer = string.Join("\r\n", lines);
+            Logger.LogInfo($"[PhotoToCard] 已僅顯示錨點子樹（{nodes.Count} 個節點），骨骼名稱已複製到剪貼簿（每行一個）。");
+        }
+
         private void EnsureStructureLineMaterial()
         {
             if (_structureLineMat != null) return;
@@ -622,6 +709,9 @@ namespace HS2.PhotoToCard.Plugin
             if (GUILayout.Button("清除綠線錨點"))
                 _structureAnchorNode = null;
 
+            if (GUILayout.Button("僅留錨點子樹＋複製名稱到剪貼簿"))
+                IsolateAnchorSubtreeAndCopyNamesToClipboard();
+
             bool newHide = GUILayout.Toggle(_hideTextures, "只顯示骨骼（隱藏所有貼圖）");
             if (newHide != _hideTextures)
             {
@@ -697,7 +787,7 @@ namespace HS2.PhotoToCard.Plugin
                     _structureMode)
                 {
                     BoneNode hit = PickBoneNodeAtGui(guiMouse, visibleList, cam, half);
-                    _structureAnchorNode = hit;
+                    ApplyStructurePick(hit);
                 }
             }
 
