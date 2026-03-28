@@ -1,3 +1,6 @@
+[submodule "KKManager"]
+	path = KKManager
+	url = https://github.com/cj-chi/KKManager.git
 [submodule "Face2Parameter"]
 	path = Face2Parameter
 	url = https://github.com/ChasonJiang/Face2Parameter.git
