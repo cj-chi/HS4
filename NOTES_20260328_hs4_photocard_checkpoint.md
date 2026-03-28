@@ -60,3 +60,4 @@ git tag -a checkpoint/hs4-photocard-20260328 -m "HS4: PhotoToCard bone debug, Me
 ## 與其他筆記
 
 - 環視／興奮劑等另一段 WIP 見同目錄 `NOTES_20260328_wip_checkpoint.md`（若存在）。
+- **雙外掛部署、PhotoToCard 自動化開關、編輯器重載修正**：`NOTES_hs4_hs2_plugins_checkpoint.md`，標籤 `checkpoint/hs4-hs2-plugins-deploy`。

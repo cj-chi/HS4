@@ -8,8 +8,13 @@
     <Nullable>enable</Nullable>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- HS2Managed / HS2BepInEx：可由 repo 根目錄 Directory.Build.props 統一設定 -->
     <HS2Managed Condition="'$(HS2Managed)' == ''">D:\HS2\HoneySelect2_Data\Managed</HS2Managed>
     <HS2BepInEx Condition="'$(HS2BepInEx)' == ''">D:\HS2\BepInEx</HS2BepInEx>
+    <!-- 預設：僅臉部骨骼除錯；自動進場景 + load_card_request 輪詢請加 -p:PhotoToCardAutomation=true -->
+    <PhotoToCardAutomation Condition="'$(PhotoToCardAutomation)' == ''">false</PhotoToCardAutomation>
+    <!-- CopyToHS2Plugins 預設見 repo 根 Directory.Build.props -->
+    <DefineConstants Condition="'$(PhotoToCardAutomation)' == 'true'">$(DefineConstants);PHOTOTOCARD_AUTOMATION</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -61,8 +66,8 @@
     <Error Condition="!Exists('$(HS2Managed)\Assembly-CSharp.dll') and !Exists('refs\Assembly-CSharp.dll')"
            Text="HS2 game refs missing. Set HS2Managed to your game's HoneySelect2_Data\Managed (e.g. dotnet build -p:HS2Managed=D:\HS2\HoneySelect2_Data\Managed) or copy Assembly-CSharp.dll, UnityEngine.dll, UnityEngine.CoreModule.dll, UnityEngine.IMGUIModule.dll into BepInEx_HS2_PhotoToCard\refs\" />
   </Target>
-  <Target Name="CopyToHS2" AfterTargets="Build" Condition="Exists('$(HS2BepInEx)\Plugins')">
-    <Copy SourceFiles="$(OutputPath)HS2.PhotoToCard.dll" DestinationFolder="$(HS2BepInEx)\Plugins" SkipUnchangedFiles="true" />
-    <Message Importance="high" Text="Copied HS2.PhotoToCard.dll to $(HS2BepInEx)\Plugins" />
+  <Target Name="CopyToHS2" AfterTargets="Build" Condition="Exists('$(HS2BepInEx)\plugins') and '$(CopyToHS2Plugins)' == 'true'">
+    <Copy SourceFiles="$(OutputPath)HS2.PhotoToCard.dll" DestinationFolder="$(HS2BepInEx)\plugins" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Copied HS2.PhotoToCard.dll to $(HS2BepInEx)\plugins" />
   </Target>
 </Project>

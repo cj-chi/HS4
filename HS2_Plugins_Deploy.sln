@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HS2OrbitAndExciter", "HS2OrbitAndExciter\HS2OrbitAndExciter.csproj", "{1BF1FAE5-E3AB-4727-A13D-C048C6F59200}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HS2.PhotoToCard.Plugin", "BepInEx_HS2_PhotoToCard\HS2.PhotoToCard.Plugin.csproj", "{26D7F000-3900-4A93-8B99-74FF375352D8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1BF1FAE5-E3AB-4727-A13D-C048C6F59200}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1BF1FAE5-E3AB-4727-A13D-C048C6F59200}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1BF1FAE5-E3AB-4727-A13D-C048C6F59200}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1BF1FAE5-E3AB-4727-A13D-C048C6F59200}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26D7F000-3900-4A93-8B99-74FF375352D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26D7F000-3900-4A93-8B99-74FF375352D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26D7F000-3900-4A93-8B99-74FF375352D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26D7F000-3900-4A93-8B99-74FF375352D8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -7,8 +7,9 @@
     <Nullable>enable</Nullable>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <HS2Managed Condition="'$(HS2Managed)' == ''">D:\hs2\HS2_Data\Managed</HS2Managed>
-    <HS2BepInEx Condition="'$(HS2BepInEx)' == ''">D:\hs2\BepInEx</HS2BepInEx>
+    <!-- HS2Managed / HS2BepInEx：可由 repo 根目錄 Directory.Build.props 統一設定 -->
+    <HS2Managed Condition="'$(HS2Managed)' == ''">D:\HS2\HoneySelect2_Data\Managed</HS2Managed>
+    <HS2BepInEx Condition="'$(HS2BepInEx)' == ''">D:\HS2\BepInEx</HS2BepInEx>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BepInEx.Core" Version="5.4.21" />
@@ -55,8 +56,8 @@
     <Error Condition="!Exists('$(HS2Managed)\Assembly-CSharp.dll') and !Exists('refs\Assembly-CSharp.dll')"
            Text="HS2 game refs missing. Set HS2Managed to your game's HS2_Data\Managed or copy DLLs into refs\" />
   </Target>
-  <!-- Build 後自動複製到 HS2 BepInEx\plugins，遊戲啟動即會載入 -->
-  <Target Name="CopyToHS2" AfterTargets="Build" Condition="Exists('$(HS2BepInEx)\plugins')">
+  <!-- Build 後複製到 BepInEx\plugins（CopyToHS2Plugins 預設 true，見 repo 根 Directory.Build.props） -->
+  <Target Name="CopyToHS2" AfterTargets="Build" Condition="Exists('$(HS2BepInEx)\plugins') and '$(CopyToHS2Plugins)' == 'true'">
     <Copy SourceFiles="$(OutputPath)HS2OrbitAndExciter.dll" DestinationFolder="$(HS2BepInEx)\plugins" SkipUnchangedFiles="true" />
     <Message Importance="high" Text="Copied HS2OrbitAndExciter.dll to $(HS2BepInEx)\plugins" />
   </Target>

@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Collections;
 using System.IO;
+using System.Globalization;
+#if PHOTOTOCARD_AUTOMATION
 using System.Reflection;
+using IllusionUtility.GetUtility;
+#endif
 using AIChara;
 using BepInEx;
 using BepInEx.Configuration;
 using CharaCustom;
-using IllusionUtility.GetUtility;
 using Manager;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -28,6 +31,7 @@ namespace HS2.PhotoToCard.Plugin
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     public class HS2PhotoToCardPlugin : BaseUnityPlugin
     {
+#if PHOTOTOCARD_AUTOMATION
         private ConfigEntry<string> _requestFilePath;
         private ConfigEntry<bool> _autoEnterCharaCustom;
         private ConfigEntry<int> _startupDelaySeconds;
@@ -38,12 +42,15 @@ namespace HS2.PhotoToCard.Plugin
         private bool _readyFileWritten;
         private bool _hasZoomedThisSession;
         private float _screenshotFov = -1f;
+#endif
 
         // 方案 A：臉部骨骼樹狀選單與 2D 點顯示（僅頭部骨架）
         private ConfigEntry<KeyCode> _boneDebugToggleKey;
         private bool _boneDebugVisible;
         private BoneNode _boneRoot;
         private ChaControl _boneTreeChaCtrl;
+        /// <summary>objHeadBone.transform.GetInstanceID() when tree was built; changes after ReloadAsync → must rebuild.</summary>
+        private int _boneHeadRootTransformId = int.MinValue;
         private Vector2 _boneMenuScroll;
         private const float BoneMenuWidth = 320f;
         private const float BoneMenuMaxHeightRatio = 0.85f;
@@ -66,8 +73,35 @@ namespace HS2.PhotoToCard.Plugin
         private const float BonePickMaxMovePx = 6f;
         private static readonly Color StructureLineColor = new Color(0.2f, 1f, 0.35f, 0.92f);
 
+        // #region agent log
+        private const string AgentDbgPath = @"d:\HS4\debug-a30eab.log";
+        private float _agentDbgNextTime;
+        private bool _agentBoneTreeJustRebuilt;
+
+        private static void AgentDbgLog(string hypothesisId, string location, string message, string dataJsonObject)
+        {
+            try
+            {
+                long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                File.AppendAllText(AgentDbgPath,
+                    "{\"sessionId\":\"a30eab\",\"hypothesisId\":\"" + hypothesisId + "\",\"location\":\"" + location + "\",\"message\":\"" + message + "\",\"data\":" + dataJsonObject + ",\"timestamp\":" + ts.ToString(CultureInfo.InvariantCulture) + "}\n");
+            }
+            catch { }
+        }
+
+        private static int CountShowTrueTotal(BoneNode node)
+        {
+            if (node == null) return 0;
+            int n = node.Show ? 1 : 0;
+            for (int i = 0; i < node.Children.Count; i++)
+                n += CountShowTrueTotal(node.Children[i]);
+            return n;
+        }
+        // #endregion
+
         private void Awake()
         {
+#if PHOTOTOCARD_AUTOMATION
             _requestFilePath = Config.Bind(
                 "Paths",
                 "RequestFile",
@@ -91,14 +125,24 @@ namespace HS2.PhotoToCard.Plugin
             _lastCheckTime = 0f;
             _isProcessing = false;
             _readyFileWritten = false;
+#endif
             _boneDebugToggleKey = Config.Bind("Debug", "BoneDebugToggleKey", KeyCode.ScrollLock, "Key to toggle face bone debug menu (tree + 2D dots, face only). Only in CharaCustom. Default: ScrollLock.");
             _boneDebugVisible = false;
+#if PHOTOTOCARD_AUTOMATION
             Logger.LogInfo($"{PluginInfo.PLUGIN_NAME} v{PluginInfo.PLUGIN_VERSION} loaded. Request file: {_requestFilePath.Value}");
+            // #region agent log
+            AgentDbgLog("H0", "Awake", "plugin_init",
+                "{\"autoEnterCharaCustom\":" + (_autoEnterCharaCustom.Value ? "true" : "false")
+                + ",\"startupDelaySeconds\":" + _startupDelaySeconds.Value.ToString(CultureInfo.InvariantCulture) + "}");
+            // #endregion
             if (_autoEnterCharaCustom.Value)
             {
                 Logger.LogInfo($"[PhotoToCard] AutoEnterCharaCustom enabled. Will load CharaCustom after {_startupDelaySeconds.Value}s.");
                 StartCoroutine(AutoEnterCharaCustomCoroutine());
             }
+#else
+            Logger.LogInfo($"{PluginInfo.PLUGIN_NAME} v{PluginInfo.PLUGIN_VERSION} loaded (臉部骨骼除錯；含請求檔/自動進場景之自動化請以 -p:PhotoToCardAutomation=true 建置)。");
+#endif
         }
 
         private void OnEnable()
@@ -116,9 +160,23 @@ namespace HS2.PhotoToCard.Plugin
             }
         }
 
+#if PHOTOTOCARD_AUTOMATION
         private IEnumerator AutoEnterCharaCustomCoroutine()
         {
             yield return new WaitForSeconds(Mathf.Clamp(_startupDelaySeconds.Value, 5, 120));
+            var active = SceneManager.GetActiveScene().name;
+            // #region agent log
+            AgentDbgLog("H-A", "AutoEnterCharaCustomCoroutine", "delay_elapsed",
+                "{\"activeScene\":\"" + active + "\",\"willLoadScene\":true}");
+            // #endregion
+            if (active == "CharaCustom")
+            {
+                Logger.LogInfo("[PhotoToCard] Already in CharaCustom; skipping LoadSceneAsync so editor state (e.g. bone debug) is not reset.");
+                // #region agent log
+                AgentDbgLog("H-A", "AutoEnterCharaCustomCoroutine", "skipped_already_in_chara_custom", "{}");
+                // #endregion
+                yield break;
+            }
             Logger.LogInfo("[PhotoToCard] Loading CharaCustom scene...");
             var op = SceneManager.LoadSceneAsync("CharaCustom");
             if (op != null)
@@ -130,6 +188,7 @@ namespace HS2.PhotoToCard.Plugin
             else
                 Logger.LogWarning("[PhotoToCard] LoadSceneAsync(CharaCustom) returned null.");
         }
+#endif
 
         private void Update()
         {
@@ -145,6 +204,7 @@ namespace HS2.PhotoToCard.Plugin
                     _boneDebugVisible = true;
             }
 
+#if PHOTOTOCARD_AUTOMATION
             if (_isProcessing) return;
 
             if (sceneName == "CharaCustom" && !_readyFileWritten)
@@ -222,6 +282,14 @@ namespace HS2.PhotoToCard.Plugin
             }
 
             Logger.LogInfo($"[PhotoToCard] Request file found. Card to load: {cardPath}");
+            // #region agent log
+            long reqMtimeMs = 0;
+            try { reqMtimeMs = new DateTimeOffset(File.GetLastWriteTimeUtc(requestPath)).ToUnixTimeMilliseconds(); } catch { }
+            AgentDbgLog("H-B", "Update", "load_card_request_triggered",
+                "{\"requestBase\":\"" + (Path.GetFileName(requestPath) ?? "").Replace("\\", "\\\\").Replace("\"", "'")
+                + "\",\"cardBase\":\"" + (Path.GetFileName(cardPath) ?? "").Replace("\\", "\\\\").Replace("\"", "'")
+                + "\",\"requestMtimeUtcMs\":" + reqMtimeMs.ToString(CultureInfo.InvariantCulture) + "}");
+            // #endregion
             try
             {
                 File.WriteAllText(requestPath, "");
@@ -247,8 +315,10 @@ namespace HS2.PhotoToCard.Plugin
             Logger.LogInfo("[PhotoToCard] Starting LoadCardAndScreenshot.");
             _isProcessing = true;
             StartCoroutine(LoadCardAndScreenshot(cardPath, requestPath));
+#endif
         }
 
+#if PHOTOTOCARD_AUTOMATION
         private static readonly string DebugLogPath = Path.Combine(@"D:\HS4", "debug-526b9a.log");
 
         private void AppendDebugLog(string requestFilePath, string hypothesisId, string message, string dataJson)
@@ -438,6 +508,8 @@ namespace HS2.PhotoToCard.Plugin
             catch { return null; }
         }
 
+#endif
+
         // ---------- 方案 A：臉部骨骼樹狀選單 + 2D 點顯示 ----------
 
         private static BoneNode BuildBoneTree(Transform tr)
@@ -455,11 +527,16 @@ namespace HS2.PhotoToCard.Plugin
         private void EnsureBoneTree(ChaControl chaCtrl)
         {
             if (chaCtrl == null) return;
-            if (_boneTreeChaCtrl != chaCtrl || _boneRoot == null)
+            var rootTr = chaCtrl.objHeadBone != null ? chaCtrl.objHeadBone.transform : null;
+            int headId = rootTr != null ? rootTr.GetInstanceID() : int.MinValue;
+            if (_boneTreeChaCtrl != chaCtrl || _boneRoot == null || _boneHeadRootTransformId != headId)
             {
+                // #region agent log
+                _agentBoneTreeJustRebuilt = true;
+                // #endregion
                 _boneTreeChaCtrl = chaCtrl;
+                _boneHeadRootTransformId = headId;
                 // 只顯示臉部相關骨骼（頭部骨架），點數較少、方便對照 MediaPipe / 滑桿
-                var rootTr = chaCtrl.objHeadBone != null ? chaCtrl.objHeadBone.transform : null;
                 _boneRoot = rootTr != null ? BuildBoneTree(rootTr) : null;
             }
         }
@@ -732,12 +809,24 @@ namespace HS2.PhotoToCard.Plugin
         {
             if (!_boneDebugVisible) return;
             if (SceneManager.GetActiveScene().name != "CharaCustom") return;
+            bool rep = Event.current.type == EventType.Repaint;
+            bool logNow = rep && Time.unscaledTime >= _agentDbgNextTime;
+            if (logNow) _agentDbgNextTime = Time.unscaledTime + 0.5f;
+
             var customBase = Singleton<CustomBase>.Instance;
             var chaCtrl = customBase?.chaCtrl;
-            if (chaCtrl == null) return;
+            if (chaCtrl == null)
+            {
+                if (logNow) AgentDbgLog("H4", "OnGUI", "early_exit", "{\"reason\":\"chaCtrl_null\"}");
+                return;
+            }
 
             EnsureBoneTree(chaCtrl);
-            if (_boneRoot == null) return;
+            if (_boneRoot == null)
+            {
+                if (logNow) AgentDbgLog("H4", "OnGUI", "early_exit", "{\"reason\":\"boneRoot_null\",\"headBoneMissing\":true}");
+                return;
+            }
 
             float menuHeight = Mathf.Min(Screen.height * BoneMenuMaxHeightRatio, 600f);
             float winW = BoneMenuWidth;
@@ -747,7 +836,11 @@ namespace HS2.PhotoToCard.Plugin
             _boneMenuRect = GUI.Window(BoneWindowId, _boneMenuRect, DrawBoneDebugWindow, "臉部骨骼除錯");
 
             var cam = Camera.main;
-            if (cam == null) return;
+            if (cam == null)
+            {
+                if (logNow) AgentDbgLog("H4", "OnGUI", "early_exit", "{\"reason\":\"cam_main_null\"}");
+                return;
+            }
 
             if (_dotStyle == null)
             {
@@ -768,6 +861,31 @@ namespace HS2.PhotoToCard.Plugin
 
             var visibleList = new List<BoneNode>();
             CollectVisibleBones(_boneRoot, visibleList);
+            // #region agent log
+            if (logNow)
+            {
+                int showTrue = CountShowTrueTotal(_boneRoot);
+                int drawableZ = 0;
+                for (int i = 0; i < visibleList.Count; i++)
+                {
+                    var nn = visibleList[i];
+                    if (nn?.Transform == null) continue;
+                    if (cam.WorldToScreenPoint(nn.Transform.position).z > 0f) drawableZ++;
+                }
+                bool justRebuilt = _agentBoneTreeJustRebuilt;
+                _agentBoneTreeJustRebuilt = false;
+                AgentDbgLog("H1_H2_H3", "OnGUI", "bone_dot_snapshot",
+                    "{\"visibleListCount\":" + visibleList.Count.ToString(CultureInfo.InvariantCulture)
+                    + ",\"showTrueTotal\":" + showTrue.ToString(CultureInfo.InvariantCulture)
+                    + ",\"drawableZPositive\":" + drawableZ.ToString(CultureInfo.InvariantCulture)
+                    + ",\"boneTreeRebuiltThisTick\":" + (justRebuilt ? "true" : "false")
+                    + ",\"structureMode\":" + (_structureMode ? "true" : "false")
+                    + ",\"anchorSet\":" + (_structureAnchorNode != null ? "true" : "false")
+                    + ",\"chaInst\":" + chaCtrl.GetInstanceID().ToString(CultureInfo.InvariantCulture)
+                    + ",\"storedChaInst\":" + (_boneTreeChaCtrl != null ? _boneTreeChaCtrl.GetInstanceID().ToString(CultureInfo.InvariantCulture) : "0")
+                    + "}");
+            }
+            // #endregion
             float half = DotSize * 0.5f;
             float labelTopOffset = half + 4f;
 

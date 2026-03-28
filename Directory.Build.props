@@ -1,0 +1,9 @@
+<Project>
+  <!-- 兩支 HS2 外掛共用：建置時複製到同一 BepInEx。可用 -p:HS2BepInEx=... 覆寫 -->
+  <PropertyGroup>
+    <HS2Managed Condition="'$(HS2Managed)' == ''">D:\HS2\HoneySelect2_Data\Managed</HS2Managed>
+    <HS2BepInEx Condition="'$(HS2BepInEx)' == ''">D:\HS2\BepInEx</HS2BepInEx>
+    <!-- 兩支外掛建置後是否複製到 BepInEx\plugins；關閉請 -p:CopyToHS2Plugins=false -->
+    <CopyToHS2Plugins Condition="'$(CopyToHS2Plugins)' == ''">true</CopyToHS2Plugins>
+  </PropertyGroup>
+</Project>
