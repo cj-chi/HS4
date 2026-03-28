@@ -10,6 +10,7 @@ using CharaCustom;
 using IllusionUtility.GetUtility;
 using Manager;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 namespace HS2.PhotoToCard.Plugin
@@ -47,15 +48,23 @@ namespace HS2.PhotoToCard.Plugin
         private const float BoneMenuWidth = 320f;
         private const float BoneMenuMaxHeightRatio = 0.85f;
         private const int BoneWindowId = 0x7b0e;
-        private const float DotSize = 22f;
+        private const float DotSize = 11f;
         private const float LabelMaxWidth = 220f;
         private const float LabelHeight = 22f;
-        private const int LabelFontSize = 16;
+        private const int LabelFontSize = 14;
         private static GUIStyle _dotStyle;
         private static GUIStyle _labelStyle;
         private static GUIStyle _labelBgStyle;
         private Rect _boneMenuRect;
         private bool _hideTextures;
+
+        private bool _structureMode;
+        private BoneNode _structureAnchorNode;
+        private Material _structureLineMat;
+        private Vector2 _bonePickMouseDownGui;
+        private bool _bonePickWaitingUp;
+        private const float BonePickMaxMovePx = 6f;
+        private static readonly Color StructureLineColor = new Color(0.2f, 1f, 0.35f, 0.92f);
 
         private void Awake()
         {
@@ -89,6 +98,21 @@ namespace HS2.PhotoToCard.Plugin
             {
                 Logger.LogInfo($"[PhotoToCard] AutoEnterCharaCustom enabled. Will load CharaCustom after {_startupDelaySeconds.Value}s.");
                 StartCoroutine(AutoEnterCharaCustomCoroutine());
+            }
+        }
+
+        private void OnEnable()
+        {
+            Camera.onPostRender += OnCameraPostRenderDrawStructure;
+        }
+
+        private void OnDestroy()
+        {
+            Camera.onPostRender -= OnCameraPostRenderDrawStructure;
+            if (_structureLineMat != null)
+            {
+                Destroy(_structureLineMat);
+                _structureLineMat = null;
             }
         }
 
@@ -472,6 +496,86 @@ namespace HS2.PhotoToCard.Plugin
             foreach (var c in node.Children) CollectVisibleBones(c, outList);
         }
 
+        private static void SetAllBoneShow(BoneNode node, bool show)
+        {
+            if (node == null) return;
+            node.Show = show;
+            for (int i = 0; i < node.Children.Count; i++)
+                SetAllBoneShow(node.Children[i], show);
+        }
+
+        private static BoneNode PickBoneNodeAtGui(Vector2 guiMouse, List<BoneNode> visibleList, Camera cam, float half)
+        {
+            BoneNode best = null;
+            float bestD = float.MaxValue;
+            for (int i = 0; i < visibleList.Count; i++)
+            {
+                var n = visibleList[i];
+                if (n.Transform == null) continue;
+                Vector3 world = n.Transform.position;
+                Vector3 screen = cam.WorldToScreenPoint(world);
+                if (screen.z <= 0f) continue;
+                float guiY = Screen.height - screen.y;
+                var center = new Vector2(screen.x, guiY);
+                var dotRect = new Rect(screen.x - half, guiY - half, half * 2f, half * 2f);
+                if (!dotRect.Contains(guiMouse)) continue;
+                float d = Vector2.Distance(guiMouse, center);
+                if (d < bestD)
+                {
+                    bestD = d;
+                    best = n;
+                }
+            }
+            return best;
+        }
+
+        private void EnsureStructureLineMaterial()
+        {
+            if (_structureLineMat != null) return;
+            var shader = Shader.Find("Hidden/Internal-Colored");
+            if (shader == null) return;
+            _structureLineMat = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+            _structureLineMat.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+            _structureLineMat.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            _structureLineMat.SetInt("_Cull", (int)CullMode.Off);
+            _structureLineMat.SetInt("_ZWrite", 0);
+            _structureLineMat.SetInt("_ZTest", (int)CompareFunction.Always);
+        }
+
+        private static void DrawSubtreeEdgesWorld(Transform t)
+        {
+            if (t == null) return;
+            Vector3 p = t.position;
+            for (int i = 0; i < t.childCount; i++)
+            {
+                Transform c = t.GetChild(i);
+                Vector3 q = c.position;
+                GL.Vertex3(p.x, p.y, p.z);
+                GL.Vertex3(q.x, q.y, q.z);
+                DrawSubtreeEdgesWorld(c);
+            }
+        }
+
+        private void OnCameraPostRenderDrawStructure(Camera cam)
+        {
+            if (!_boneDebugVisible || !_structureMode || _structureAnchorNode == null || _structureAnchorNode.Transform == null)
+                return;
+            if (SceneManager.GetActiveScene().name != "CharaCustom") return;
+            if (cam == null || cam != Camera.main) return;
+            EnsureStructureLineMaterial();
+            if (_structureLineMat == null) return;
+
+            _structureLineMat.SetPass(0);
+            GL.PushMatrix();
+            GL.LoadProjectionMatrix(GL.GetGPUProjectionMatrix(cam.projectionMatrix, false));
+            GL.modelview = cam.worldToCameraMatrix;
+            GL.Begin(GL.LINES);
+            GL.Color(StructureLineColor);
+            DrawSubtreeEdgesWorld(_structureAnchorNode.Transform);
+            GL.End();
+            GL.PopMatrix();
+        }
+
         private static void SetCharacterRenderersEnabled(ChaControl chaCtrl, bool enabled)
         {
             if (chaCtrl == null) return;
@@ -483,6 +587,8 @@ namespace HS2.PhotoToCard.Plugin
         private void CloseBoneDebugAndRestore(ChaControl chaCtrl)
         {
             _boneDebugVisible = false;
+            _structureAnchorNode = null;
+            _bonePickWaitingUp = false;
             if (_hideTextures && chaCtrl != null)
             {
                 SetCharacterRenderersEnabled(chaCtrl, true);
@@ -501,6 +607,20 @@ namespace HS2.PhotoToCard.Plugin
                 var chaCtrl = Singleton<CustomBase>.Instance?.chaCtrl;
                 CloseBoneDebugAndRestore(chaCtrl);
             }
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("全選顯示點", GUILayout.Width(110f)))
+                SetAllBoneShow(_boneRoot, true);
+            if (GUILayout.Button("全部不顯示", GUILayout.Width(100f)))
+                SetAllBoneShow(_boneRoot, false);
+            GUILayout.EndHorizontal();
+
+            bool newStruct = GUILayout.Toggle(_structureMode, "結構模式（點骨骼：綠線畫子樹從屬）");
+            if (newStruct != _structureMode && !newStruct)
+                _structureAnchorNode = null;
+            _structureMode = newStruct;
+            if (GUILayout.Button("清除綠線錨點"))
+                _structureAnchorNode = null;
 
             bool newHide = GUILayout.Toggle(_hideTextures, "只顯示骨骼（隱藏所有貼圖）");
             if (newHide != _hideTextures)
@@ -536,7 +656,6 @@ namespace HS2.PhotoToCard.Plugin
                 _boneMenuRect = new Rect(8f, 8f, winW, winH);
             _boneMenuRect = GUI.Window(BoneWindowId, _boneMenuRect, DrawBoneDebugWindow, "臉部骨骼除錯");
 
-            // 2D 點：僅對勾選的骨骼畫在螢幕上（較大點 + 大字 + 深色底標籤）
             var cam = Camera.main;
             if (cam == null) return;
 
@@ -561,6 +680,31 @@ namespace HS2.PhotoToCard.Plugin
             CollectVisibleBones(_boneRoot, visibleList);
             float half = DotSize * 0.5f;
             float labelTopOffset = half + 4f;
+
+            Vector2 guiMouse = Event.current.mousePosition;
+            bool mouseInMenu = _boneMenuRect.Contains(guiMouse);
+
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && !mouseInMenu)
+            {
+                _bonePickMouseDownGui = guiMouse;
+                _bonePickWaitingUp = true;
+            }
+            if (Event.current.type == EventType.MouseUp && Event.current.button == 0 && _bonePickWaitingUp)
+            {
+                _bonePickWaitingUp = false;
+                if (!_boneMenuRect.Contains(guiMouse) &&
+                    Vector2.Distance(guiMouse, _bonePickMouseDownGui) < BonePickMaxMovePx &&
+                    _structureMode)
+                {
+                    BoneNode hit = PickBoneNodeAtGui(guiMouse, visibleList, cam, half);
+                    _structureAnchorNode = hit;
+                }
+            }
+
+            BoneNode hoverNode = null;
+            if (!mouseInMenu)
+                hoverNode = PickBoneNodeAtGui(guiMouse, visibleList, cam, half);
+
             foreach (var n in visibleList)
             {
                 if (n.Transform == null) continue;
@@ -570,12 +714,22 @@ namespace HS2.PhotoToCard.Plugin
                 float guiY = Screen.height - screen.y;
                 Rect dotRect = new Rect(screen.x - half, guiY - half, DotSize, DotSize);
                 GUI.Box(dotRect, "", _dotStyle);
-                float labelY = guiY - half - labelTopOffset - LabelHeight;
-                Rect labelRect = new Rect(screen.x - LabelMaxWidth * 0.5f, labelY, LabelMaxWidth, LabelHeight);
-                if (labelRect.y >= 0 && labelRect.y < Screen.height - LabelHeight)
+            }
+
+            if (hoverNode != null && !mouseInMenu)
+            {
+                Vector3 world = hoverNode.Transform.position;
+                Vector3 screen = cam.WorldToScreenPoint(world);
+                if (screen.z > 0f)
                 {
-                    GUI.Box(labelRect, "", _labelBgStyle);
-                    GUI.Label(labelRect, n.Name, _labelStyle);
+                    float guiY = Screen.height - screen.y;
+                    float labelY = guiY - half - labelTopOffset - LabelHeight;
+                    Rect labelRect = new Rect(screen.x - LabelMaxWidth * 0.5f, labelY, LabelMaxWidth, LabelHeight);
+                    if (labelRect.y >= 0 && labelRect.y < Screen.height - LabelHeight)
+                    {
+                        GUI.Box(labelRect, "", _labelBgStyle);
+                        GUI.Label(labelRect, hoverNode.Name, _labelStyle);
+                    }
                 }
             }
         }
