@@ -1,0 +1,59 @@
+# MediaPipe 索引 ↔ 臉部骨骼（對照備忘）
+# 標註：手動＝你標的；表＝與 bone_landmark_map.json 語意一致（仍建議疊圖驗證）；未配對＝不硬猜
+
+## 頰
+cf_J_CheekUp_L / cf_J_CheekUp_R    451/231  （手動）
+cf_J_CheekLow_L / cf_J_CheekLow_R    234/454  （表，★ 輪廓點建議疊圖）
+
+## 下巴／下顎
+cf_J_Chin_rs    200  （手動）
+cf_J_ChinTip_s    152  （表，下巴尖）
+cf_J_ChinLow    175  （表，下顎低點）
+
+## 耳（整組）
+cf_J_EarBase_s_L / cf_J_EarBase_s_R    454/234  （手動）
+cf_J_EarLow_L / cf_J_EarLow_R   401/132（手動，近似）
+cf_J_EarRing_L / cf_J_EarRing_R   401/132（手動，近似）
+cf_J_EarUp_L / cf_J_EarUp_R   389/162（手動，近似）
+
+## 眼 — 主錨點（表 ★★★）
+cf_J_Eye_t_L / cf_J_Eye_t_R    33/263  （外眼角）
+cf_J_Eye_s_L / cf_J_Eye_s_R    133/362  （內眼角／眼縮放中心）
+
+## 眼 — 旋轉／瞼／球體細節（無單一解剖 landmark，未配對）
+cf_J_Eye_r_L / cf_J_Eye_r_R    （未配對，眼球後部／旋轉軸）
+cf_J_Eye01_L / cf_J_Eye01_R    （未配對）
+cf_J_Eye02_L / cf_J_Eye02_R    （未配對）
+cf_J_Eye03_L / cf_J_Eye03_R    （未配對）
+cf_J_Eye04_L / cf_J_Eye04_R    （未配對）
+cf_j_eye01_s_L / cf_j_eye01_s_R  398/173  （手動；非 DstName 頂層名，實際階層以 prefab 為準）
+cf_j_eye02_s_L / cf_j_eye02_s_R  385/158  （手動）
+cf_J_EyePos_rz_L / cf_J_EyePos_rz_R    （未配對，深度／旋轉為主）
+cf_j_pupil_s_L / cf_j_pupil_s_R  473/468  （手動；原 cj_j 為筆誤。虹膜／瞳孔中心隨 MP 版本與是否開 iris 而變，勿當通用常數）
+
+## 臉部整體／深度
+cf_J_FaceBase    （未配對，整臉比例／多軸形變）
+cf_J_FaceLow_s    （未配對）
+cf_J_FaceLowBase    （未配對）
+cf_J_FaceUp_ty    10  （表，額頭中心參考點）
+cf_J_FaceUp_tz    （未配對，以前後深度為主，2D 難對單點）
+
+## 其他
+cf_J_megane（眼鏡）    （未配對，配件掛點）
+
+## 嘴／口內
+cf_J_Mouth_L / cf_J_Mouth_R    61/291  （表，嘴角）
+cf_J_Mouthup    13  （表，上唇中，★★）
+cf_J_MouthLow    17  （表，下唇中，★★）
+cf_J_MouthBase_s    （未配對，口周基座）
+cf_J_MouthBase_tr    （未配對）
+cf_J_MouthCavity    （未配對，口內空間）
+
+## 鼻
+cf_J_Nose_tip    4  （表，鼻尖）
+cf_J_NoseBridge_s    6  （表，鼻樑，與 NoseBridge_t 不同骨）
+cf_J_NoseWing_tx_L / cf_J_NoseWing_tx_R    98/327  （表，鼻翼）
+cf_J_Nose_t    （未配對；與 Nose_tip 不同，無穩定單點）
+cf_J_NoseBase_s    （未配對）
+cf_J_NoseBase_trs    （未配對）
+cf_J_NoseBridge_t    （未配對；有別於 NoseBridge_s，避免與 6 混用）

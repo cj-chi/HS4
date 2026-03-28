@@ -137,6 +137,7 @@ namespace HS2.PhotoToCard.Plugin
                             var dir = Path.GetDirectoryName(reqPath);
                             if (!string.IsNullOrEmpty(dir))
                             {
+                                Directory.CreateDirectory(dir);
                                 var readyPath = Path.Combine(dir, _readyFileName.Value);
                                 File.WriteAllText(readyPath, DateTime.UtcNow.ToString("o"));
                                 _readyFileWritten = true;
@@ -302,6 +303,8 @@ namespace HS2.PhotoToCard.Plugin
 
             var dir = Path.GetDirectoryName(requestFilePath);
             if (string.IsNullOrEmpty(dir)) dir = @"D:\HS4\output";
+            try { dir = Path.GetFullPath(dir); } catch { }
+            try { Directory.CreateDirectory(dir); } catch (Exception ex) { Logger.LogWarning($"[PhotoToCard] Could not create output dir: {ex.Message}"); }
             var screenshotPath = Path.Combine(dir, "game_screenshot.png");
             try { screenshotPath = Path.GetFullPath(screenshotPath); } catch { }
 
